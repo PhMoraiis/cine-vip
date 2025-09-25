@@ -1,6 +1,7 @@
+/** biome-ignore-all lint/suspicious/useIterableCallbackReturn: ignore */
 import "dotenv/config";
-import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
+import Fastify from "fastify";
 
 import { auth } from "./lib/auth";
 
