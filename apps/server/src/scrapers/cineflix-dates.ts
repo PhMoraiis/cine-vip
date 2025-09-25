@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
-import { chromium } from "@playwright/test";
+import { chromium } from "playwright";
 
 export interface DateOption {
 	value: string;
@@ -28,6 +28,7 @@ export class CineflixDatesScraper {
 		const browser = await chromium.launch({
 			headless: true,
 			slowMo: 50,
+			timeout: 120000, // Timeout maior
 		});
 
 		const context = await browser.newContext({
@@ -48,12 +49,47 @@ export class CineflixDatesScraper {
 				timeout: 60000,
 			});
 
-			// Aguardar a página carregar completamente
-			await page.waitForTimeout(3000);
+			// Aguardar a página carregar completamente e cookies
+			await page.waitForTimeout(2000);
 
-			// Passo 2: Aguardar o seletor #data-desktop aparecer
+			// Tentar aceitar cookies se aparecer
+			try {
+				await page.click('button:has-text("Continuar")', { timeout: 5000 });
+				console.log("✅ Cookies aceitos");
+				await page.waitForTimeout(1000);
+			} catch {
+				console.log("ℹ️ Sem cookies para aceitar ou já aceitos");
+			}
+
+			// Passo 2: Aguardar o seletor aparecer com múltiplas estratégias
 			console.log("⏳ Aguardando seletor #data-desktop...");
-			await page.waitForSelector("#data-desktop", { timeout: 30000 });
+
+			let selectorFound = false;
+			const maxAttempts = 3;
+
+			for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+				try {
+					await page.waitForSelector("#data-desktop", { timeout: 15000 });
+					selectorFound = true;
+					break;
+				} catch {
+					console.log(
+						`⚠️ Tentativa ${attempt}/${maxAttempts} falhou, aguardando mais um pouco...`,
+					);
+
+					if (attempt < maxAttempts) {
+						// Tentar recarregar a página se necessário
+						await page.reload({ waitUntil: "domcontentloaded" });
+						await page.waitForTimeout(3000);
+					}
+				}
+			}
+
+			if (!selectorFound) {
+				throw new Error(
+					`Seletor #data-desktop não encontrado após ${maxAttempts} tentativas`,
+				);
+			}
 
 			// Passo 3: Extrair todas as opções de data disponíveis
 			console.log("📅 Extraindo opções de datas disponíveis...");
@@ -130,8 +166,6 @@ export class CineflixDatesScraper {
 				);
 			}
 
-			await browser.close();
-
 			return {
 				success: true,
 				cinema: cinemaCode,
@@ -142,8 +176,6 @@ export class CineflixDatesScraper {
 		} catch (error) {
 			console.error("❌ Erro durante scraping de datas:", error);
 
-			await browser.close();
-
 			return {
 				success: false,
 				cinema: cinemaCode,
@@ -152,6 +184,20 @@ export class CineflixDatesScraper {
 				availableDates: [],
 				error: error instanceof Error ? error.message : "Erro desconhecido",
 			};
+		} finally {
+			// Garantir que context seja fechado
+			try {
+				await context.close();
+			} catch (closeError) {
+				console.warn("⚠️ Erro ao fechar context:", closeError);
+			}
+
+			// Browser será fechado pelo ResourceManager
+			try {
+				await browser.close();
+			} catch (closeError) {
+				console.warn("⚠️ Erro ao fechar browser:", closeError);
+			}
 		}
 	}
 

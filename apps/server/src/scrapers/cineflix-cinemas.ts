@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
-import { chromium } from "@playwright/test";
+import { chromium } from "playwright";
 
 export interface CinemaOption {
 	code: string;

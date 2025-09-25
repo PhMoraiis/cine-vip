@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
-import { chromium } from "@playwright/test";
+import { chromium } from "playwright";
 
 export interface DetailedMovieData {
 	id: string;
@@ -39,8 +39,8 @@ export class CineflixScraper {
 		);
 
 		const browser = await chromium.launch({
-			headless: false,
-			slowMo: 100,
+			headless: true,
+			slowMo: 50,
 		});
 
 		const context = await browser.newContext({

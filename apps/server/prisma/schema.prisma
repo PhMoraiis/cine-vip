@@ -11,7 +11,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id @map("_id")
+  id            String     @id @map("_id")
   name          String
   email         String
   emailVerified Boolean
@@ -20,6 +20,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  schedules     Schedule[]
 
   @@unique([email])
   @@map("user")
@@ -68,4 +69,127 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model Cinema {
+  id            String   @id @default(cuid()) @map("_id")
+  code          String   @unique
+  name          String
+  state         String
+  optgroupLabel String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  movies        Movie[]
+
+  @@map("cinema")
+}
+
+model Movie {
+  id            String         @id @default(cuid()) @map("_id")
+  externalId    String // ID do scraper
+  title         String
+  genre         String?
+  duration      String?
+  rating        String?
+  synopsis      String?
+  posterUrl     String?
+  cinemaId      String
+  cinema        Cinema         @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  date          String // Data da sessão (YYYY-MM-DD)
+  sessions      MovieSession[]
+  scheduleItems ScheduleItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([externalId, cinemaId, date])
+  @@map("movie")
+}
+
+model MovieSession {
+  id            String         @id @default(cuid()) @map("_id")
+  movieId       String
+  movie         Movie          @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  time          String
+  sessionType   String? // 2D, 3D, etc.
+  audioType     String? // DUB, LEG
+  roomNumber    String?
+  scheduleItems ScheduleItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("movie_session")
+}
+
+model AvailableDate {
+  id          String   @id @default(cuid()) @map("_id")
+  cinemaCode  String
+  value       String // Data no formato YYYY-MM-DD
+  displayText String // Texto como aparece no site
+  dayOfWeek   String?
+  dayNumber   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([cinemaCode, value])
+  @@map("available_date")
+}
+
+model ScrapingJob {
+  id          String    @id @default(cuid()) @map("_id")
+  cinemaCode  String
+  date        String // YYYY-MM-DD
+  status      JobStatus @default(PENDING)
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?
+  moviesFound Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([cinemaCode, date])
+  @@map("scraping_job")
+}
+
+model Schedule {
+  id            String         @id @default(cuid()) @map("_id")
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cinemaCode    String
+  date          String // YYYY-MM-DD
+  name          String
+  totalDuration Int // duração total em minutos
+  startTime     String? // horário de início do primeiro filme
+  endTime       String? // horário de fim do último filme
+  items         ScheduleItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("schedule")
+}
+
+model ScheduleItem {
+  id         String       @id @default(cuid()) @map("_id")
+  scheduleId String
+  schedule   Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  movieId    String
+  movie      Movie        @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  sessionId  String
+  session    MovieSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  order      Int // ordem no cronograma
+  startTime  String // horário de início calculado
+  endTime    String // horário de fim calculado
+  travelTime Int          @default(0) // tempo de deslocamento em minutos
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([scheduleId])
+  @@map("schedule_item")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }
