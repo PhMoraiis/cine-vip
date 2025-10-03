@@ -1,4 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
+
+import { init } from "@paralleldrive/cuid2";
 import { chromium } from "playwright";
 
 export interface DetailedMovieData {
@@ -29,13 +31,15 @@ export interface DetailedTimeSlot {
 	occupancyPercent?: number;
 }
 
-export class CineflixScraper {
-	async scrapeWithAngularJS(
-		cinemaCode = "BSB",
+const _createId = init({ length: 10 });
+
+export class MoviesScraper {
+	async getMoviesSessions(
+		cinemaCode = "",
 		targetDate?: string,
 	): Promise<DetailedMovieData[]> {
 		console.log(
-			`🚀 Iniciando scraping avançado - Cinema: ${cinemaCode}, Data: ${targetDate || "hoje"}`,
+			`Iniciando scraping - Cinema: ${cinemaCode}, Data: ${targetDate || "hoje"}`,
 		);
 
 		const browser = await chromium.launch({
@@ -54,7 +58,7 @@ export class CineflixScraper {
 			const date = targetDate || new Date().toISOString().split("T")[0];
 			const targetUrl = `https://www.cineflix.com.br/fullSchedule/${cinemaCode}/${date}`;
 
-			console.log(`🌐 Acessando: ${targetUrl}`);
+			console.log(`Acessando: ${targetUrl}`);
 
 			await page.goto(targetUrl, {
 				waitUntil: "domcontentloaded",
@@ -64,14 +68,11 @@ export class CineflixScraper {
 			// Aceitar cookies
 			try {
 				await page.click('button:has-text("Continuar")', { timeout: 5000 });
-				console.log("✅ Cookies aceitos");
+				console.log("Cookies aceitos");
 				await page.waitForTimeout(2000);
 			} catch {
-				console.log("ℹ️ Sem cookies para aceitar");
+				console.log("Sem cookies para aceitar");
 			}
-
-			// Aguardar AngularJS carregar completamente
-			console.log("⏳ Aguardando AngularJS carregar...");
 
 			// Aguardar elementos específicos do AngularJS aparecerem
 			await page.waitForFunction(
@@ -84,7 +85,7 @@ export class CineflixScraper {
 				{ timeout: 30000 },
 			);
 
-			console.log("✅ AngularJS carregado, aguardando dados dos filmes...");
+			console.log("Aguardando dados dos filmes...");
 
 			// Aguardar um pouco mais para garantir que os dados foram populados
 			await page.waitForTimeout(5000);
@@ -326,7 +327,7 @@ export class CineflixScraper {
 				return movies;
 			});
 
-			console.log(`🎬 Dados extraídos: ${moviesData.length} filmes`);
+			console.log(`Dados extraídos: ${moviesData.length} filmes`);
 
 			// Converter para o formato final
 			moviesData.forEach((movieData, index) => {
@@ -344,7 +345,7 @@ export class CineflixScraper {
 					});
 
 					const movie: DetailedMovieData = {
-						id: `cineflix-advanced-${cinemaCode}-${Date.now()}-${index}`,
+						id: _createId(),
 						title: movieData.title,
 						duration: movieData.duration,
 						genre: movieData.genre,
@@ -367,7 +368,7 @@ export class CineflixScraper {
 
 			// Se ainda não encontrou filmes, fazer uma última tentativa com método mais agressivo
 			if (movies.length === 0) {
-				console.log("🔍 Tentativa final: busca agressiva por dados...");
+				console.log("Tentativa final: busca agressiva por dados...");
 
 				const emergencyData = await page.evaluate(() => {
 					// Procurar por qualquer texto que pareça com filme
@@ -398,7 +399,7 @@ export class CineflixScraper {
 					return movieCandidates.slice(0, 20); // Limitar resultados
 				});
 
-				console.log("🔍 Dados de emergência:", emergencyData.slice(0, 5));
+				console.log("Dados de emergência:", emergencyData.slice(0, 5));
 
 				// Processar dados de emergência se necessário
 				if (emergencyData.length > 0) {
@@ -410,7 +411,7 @@ export class CineflixScraper {
 
 					if (allTimes.length > 0) {
 						movies.push({
-							id: `cineflix-emergency-${cinemaCode}-${Date.now()}`,
+							id: _createId(),
 							title: "Programação encontrada",
 							sessions: [
 								{
@@ -433,12 +434,12 @@ export class CineflixScraper {
 				fullPage: true,
 			});
 		} catch (error) {
-			console.error("❌ Erro durante scraping avançado:", error);
+			console.error("Erro durante scraping avançado:", error);
 		} finally {
 			await browser.close();
 		}
 
-		console.log(`🎉 Scraping concluído: ${movies.length} filmes encontrados`);
+		console.log(`Scraping concluído: ${movies.length} filmes encontrados`);
 		return movies;
 	}
 
@@ -452,27 +453,30 @@ export class CineflixScraper {
 		const allMovies: DetailedMovieData[] = [];
 
 		for (const cinemaCode of cinemaCodes) {
-			console.log(`\n🏛️ === Processando cinema: ${cinemaCode} ===`);
+			console.log(`\nProcessando cinema: ${cinemaCode} ===`);
 			try {
-				const cinemaMovies = await this.scrapeWithAngularJS(
+				const cinemaMovies = await this.getMoviesSessions(
 					cinemaCode,
 					targetDate,
 				);
 
-				// Adicionar código do cinema no ID para evitar duplicatas
+				// Com CUID não precisamos modificar o ID, já são únicos
+				// Apenas adicionar informação do cinema nas sessões se necessário
 				cinemaMovies.forEach((movie) => {
-					movie.id = `${movie.id}-${cinemaCode}`;
+					movie.sessions.forEach((session) => {
+						if (!session.cinema.includes(cinemaCode)) {
+							session.cinema = `Cineflix ${cinemaCode}`;
+							session.cinemaCode = cinemaCode;
+						}
+					});
 				});
-
 				allMovies.push(...cinemaMovies);
-				console.log(
-					`✅ ${cinemaCode}: ${cinemaMovies.length} filmes adicionados`,
-				);
+				console.log(`${cinemaCode}: ${cinemaMovies.length} filmes adicionados`);
 
 				// Pequena pausa entre cinemas
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 			} catch (error) {
-				console.log(`❌ Erro no cinema ${cinemaCode}:`, error);
+				console.log(`Erro no cinema ${cinemaCode}:`, error);
 			}
 		}
 

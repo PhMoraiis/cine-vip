@@ -16,10 +16,8 @@ export interface CinemasResponse {
 	error?: string;
 }
 
-export class CineflixCinemasScraper {
-	/**
-	 * Obtém lista completa de cinemas disponíveis organizados por UF
-	 */
+export class CinemaScraper {
+	// Obtém lista completa de cinemas disponíveis
 	async getAvailableCinemas(): Promise<CinemasResponse> {
 		console.log("🏛️ Iniciando scraping de cinemas disponíveis...");
 
@@ -36,7 +34,7 @@ export class CineflixCinemasScraper {
 
 		try {
 			// Passo 1: Entrar em https://www.cineflix.com.br/fullSchedule
-			console.log("🌐 Acessando página fullSchedule...");
+			console.log("Acessando página fullSchedule...");
 			await page.goto("https://www.cineflix.com.br/fullSchedule", {
 				waitUntil: "domcontentloaded",
 				timeout: 60000,
@@ -46,11 +44,11 @@ export class CineflixCinemasScraper {
 			await page.waitForTimeout(3000);
 
 			// Passo 2: Aguardar o seletor #cinema aparecer
-			console.log("⏳ Aguardando seletor #cinema...");
+			console.log("Aguardando seletor #cinema...");
 			await page.waitForSelector("#cinema", { timeout: 30000 });
 
 			// Passo 3 e 4: Extrair dados dos cinemas organizados por optgroups
-			console.log("🎯 Extraindo dados dos cinemas...");
+			console.log("Extraindo dados dos cinemas...");
 
 			const cinemasData = await page.evaluate(() => {
 				const select = document.querySelector("#cinema") as HTMLSelectElement;
@@ -131,10 +129,10 @@ export class CineflixCinemasScraper {
 			});
 
 			console.log(
-				`✅ Scraping concluído: ${cinemasData.allCinemas.length} cinemas encontrados`,
+				`Scraping concluído: ${cinemasData.allCinemas.length} cinemas encontrados`,
 			);
 			console.log(
-				`📊 Estados encontrados: ${Object.keys(cinemasData.cinemasByState).join(", ")}`,
+				`Estados encontrados: ${Object.keys(cinemasData.cinemasByState).join(", ")}`,
 			);
 
 			// Log detalhado dos cinemas por estado
@@ -151,7 +149,7 @@ export class CineflixCinemasScraper {
 				allCinemas: cinemasData.allCinemas,
 			};
 		} catch (error) {
-			console.error("❌ Erro durante scraping de cinemas:", error);
+			console.error("Erro durante scraping de cinemas:", error);
 
 			await browser.close();
 
@@ -163,53 +161,5 @@ export class CineflixCinemasScraper {
 				error: error instanceof Error ? error.message : "Erro desconhecido",
 			};
 		}
-	}
-
-	/**
-	 * Obtém apenas cinemas de um estado específico
-	 */
-	async getCinemasByState(targetState: string): Promise<CinemaOption[]> {
-		console.log(`🏛️ Obtendo cinemas do estado: ${targetState}...`);
-
-		const response = await this.getAvailableCinemas();
-
-		if (!response.success) {
-			console.error("❌ Erro ao obter cinemas");
-			return [];
-		}
-
-		const stateCinemas = response.cinemasByState[targetState] || [];
-		console.log(
-			`✅ Encontrados ${stateCinemas.length} cinemas em ${targetState}`,
-		);
-
-		return stateCinemas;
-	}
-
-	/**
-	 * Busca cinemas por nome ou código
-	 */
-	async searchCinemas(searchTerm: string): Promise<CinemaOption[]> {
-		console.log(`🔍 Buscando cinemas com termo: "${searchTerm}"...`);
-
-		const response = await this.getAvailableCinemas();
-
-		if (!response.success) {
-			console.error("❌ Erro ao obter cinemas");
-			return [];
-		}
-
-		const filteredCinemas = response.allCinemas.filter(
-			(cinema) =>
-				cinema.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				cinema.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				cinema.state.toLowerCase().includes(searchTerm.toLowerCase()),
-		);
-
-		console.log(
-			`✅ Encontrados ${filteredCinemas.length} cinemas com o termo "${searchTerm}"`,
-		);
-
-		return filteredCinemas;
 	}
 }

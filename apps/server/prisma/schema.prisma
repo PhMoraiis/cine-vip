@@ -11,16 +11,17 @@ datasource db {
 }
 
 model User {
-  id            String     @id @map("_id")
-  name          String
-  email         String
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
-  schedules     Schedule[]
+  id                 String              @id @map("_id")
+  name               String
+  email              String
+  emailVerified      Boolean
+  image              String?
+  createdAt          DateTime
+  updatedAt          DateTime
+  sessions           Session[]
+  accounts           Account[]
+  schedules          Schedule[]
+  generatedSchedules GeneratedSchedule[]
 
   @@unique([email])
   @@map("user")
@@ -72,14 +73,15 @@ model Verification {
 }
 
 model Cinema {
-  id            String   @id @default(cuid()) @map("_id")
-  code          String   @unique
-  name          String
-  state         String
-  optgroupLabel String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  movies        Movie[]
+  id             String          @id @default(cuid()) @map("_id")
+  code           String          @unique
+  name           String
+  state          String
+  optgroupLabel  String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  movies         Movie[]
+  availableDates AvailableDate[]
 
   @@map("cinema")
 }
@@ -111,8 +113,6 @@ model MovieSession {
   movie         Movie          @relation(fields: [movieId], references: [id], onDelete: Cascade)
   time          String
   sessionType   String? // 2D, 3D, etc.
-  audioType     String? // DUB, LEG
-  roomNumber    String?
   scheduleItems ScheduleItem[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -123,6 +123,7 @@ model MovieSession {
 model AvailableDate {
   id          String   @id @default(cuid()) @map("_id")
   cinemaCode  String
+  cinema      Cinema   @relation(fields: [cinemaCode], references: [code], onDelete: Cascade)
   value       String // Data no formato YYYY-MM-DD
   displayText String // Texto como aparece no site
   dayOfWeek   String?
@@ -185,6 +186,30 @@ model ScheduleItem {
 
   @@index([scheduleId])
   @@map("schedule_item")
+}
+
+// Nova tabela para cronogramas temporários gerados
+model GeneratedSchedule {
+  id                String   @id @default(cuid()) @map("_id")
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cinemaCode        String
+  date              String   // YYYY-MM-DD
+  name              String
+  totalDuration     Int      // duração total em minutos
+  startTime         String   // horário de início do primeiro filme
+  endTime           String   // horário de fim do último filme
+  feasible          Boolean  @default(false)
+  conflicts         String[] // Array de strings para conflitos
+  flexibilityOptions Json    @default("{}")
+  items             Json     // JSON array dos items completos
+  expiresAt         DateTime // TTL para limpeza automática (2 horas)
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([cinemaCode, date])
+  @@index([expiresAt])
+  @@map("generated_schedule")
 }
 
 enum JobStatus {

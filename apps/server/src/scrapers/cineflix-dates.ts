@@ -18,11 +18,11 @@ export interface DatesResponse {
 	error?: string;
 }
 
-export class CineflixDatesScraper {
+export class DateScraper {
 	/**
 	 * Obtém datas disponíveis para um cinema específico
 	 */
-	async getAvailableDates(cinemaCode = "SAL"): Promise<DatesResponse> {
+	async getAvailableDates(cinemaCode = ""): Promise<DatesResponse> {
 		console.log(`📅 Iniciando scraping de datas para cinema: ${cinemaCode}...`);
 
 		const browser = await chromium.launch({
