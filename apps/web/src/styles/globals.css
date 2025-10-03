@@ -5,14 +5,16 @@
 
 @theme {
 	--font-sans:
-		"Inter", "Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
 		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	--font-inter:
+		var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-manrope:
+		var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
 body {
-	@apply bg-white dark:bg-gray-950;
-
 	@media (prefers-color-scheme: dark) {
 		color-scheme: dark;
 	}
@@ -128,8 +130,5 @@ body {
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
-	}
-	body {
-		@apply bg-background text-foreground;
 	}
 }
