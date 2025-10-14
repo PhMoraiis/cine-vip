@@ -57,7 +57,7 @@ export default function Home() {
 	}, []);
 
 	return (
-		<div className="min-h-screen bg-[#0b0e13] text-white antialiased selection:bg-white/10 selection:text-white">
+		<div className="relative min-h-screen bg-background text-white antialiased selection:bg-white/10 selection:text-white">
 			{/* Background / Parallax Layers */}
 			<div className="-z-10 pointer-events-none fixed inset-0 overflow-hidden">
 				{/* Gradient background */}
@@ -66,7 +66,7 @@ export default function Home() {
 					className="absolute inset-0"
 					style={{
 						backgroundImage:
-							"linear-gradient(180deg, #0b0e13 0%, #0c1118 45%, #0a0d14 100%)",
+						"linear-gradient(180deg, #0b0e13 0%, #0c1118 45%, #0a0d14 100%)",
 					}}
 				/>
 
@@ -136,34 +136,9 @@ export default function Home() {
 							</span>
 						</div>
 					</Link>
-
-					<nav className="hidden items-center gap-7 md:flex">
-						<Link
-							href="/em-cartaz"
-							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
-							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-						>
-							Em Cartaz
-						</Link>
-						<Link
-							href="/em-breve"
-							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
-							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-						>
-							Em breve
-						</Link>
-						<Link
-							href="/cinemas"
-							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
-							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-						>
-							Cinemas
-						</Link>
-					</nav>
-
 					<div className="flex items-center gap-3">
 						<Button
-							className="hidden rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
+							className="hidden cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
 							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 							onClick={() => {
 								router.push("/auth");
@@ -172,7 +147,7 @@ export default function Home() {
 							Entrar
 						</Button>
 						<Button
-							className="rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
+							className="cursor-pointer rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
 							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 						>
 							Download App
@@ -275,7 +250,7 @@ export default function Home() {
 
 										{/* Search Button */}
 										<Button
-											className="group inline-flex items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2 font-normal text-[15px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
+											className="group inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2 font-normal text-[15px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
 											style={{
 												fontFamily: '"Manrope", ui-sans-serif, system-ui',
 											}}
