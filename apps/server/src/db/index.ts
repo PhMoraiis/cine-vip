@@ -1,6 +1,13 @@
 import { withAccelerate } from "@prisma/extension-accelerate";
-import { PrismaClient } from "../../prisma/generated/client";
+import { JobStatus, PrismaClient } from "../../prisma/generated/client";
 
-const Prisma = new PrismaClient().$extends(withAccelerate());
+if (!process.env.DATABASE_URL) {
+	throw new Error("DATABASE_URL is not defined");
+}
 
-export default Prisma;
+const prisma = new PrismaClient({
+	accelerateUrl: process.env.DATABASE_URL,
+}).$extends(withAccelerate());
+
+export { JobStatus };
+export default prisma;

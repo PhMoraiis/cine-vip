@@ -116,10 +116,10 @@ export class ScheduleController {
 			}
 
 			// Verificar se pelo menos um filme tem sessões
-			const moviesWithSessions = movies.filter(movie => 
-				movie.sessions && movie.sessions.length > 0
+			const moviesWithSessions = movies.filter(
+				(movie) => movie.sessions && movie.sessions.length > 0,
 			);
-			
+
 			if (moviesWithSessions.length === 0) {
 				return reply.status(404).send({
 					success: false,
@@ -129,7 +129,7 @@ export class ScheduleController {
 
 			// Gerar todas as combinações possíveis
 			const combinations = this.generateAllCombinations(movies);
-			
+
 			if (combinations.length === 0) {
 				return reply.status(404).send({
 					success: false,
@@ -424,8 +424,6 @@ export class ScheduleController {
 		}
 	}
 
-
-
 	/**
 	 * Gera todas as combinações possíveis de sessões para os filmes
 	 */
@@ -448,7 +446,7 @@ export class ScheduleController {
 			}
 
 			const movie = movies[movieIndex];
-			
+
 			// Se o filme não tem sessões, pular para o próximo filme
 			if (!movie.sessions || movie.sessions.length === 0) {
 				generateRecursive(movieIndex + 1, currentCombination);
@@ -550,32 +548,49 @@ export class ScheduleController {
 			const prevItem = sortedItems[i - 1];
 			const currentItem = sortedItems[i];
 
-			// Horário mínimo para próximo filme: saída efetiva + intervalo + tempo de deslocamento
-			const minNextStart = this.addMinutes(
-				prevItem.effectiveEnd,
-				prevItem.travelTime,
+			// Calcular quando o filme anterior termina (considerando saída antecipada)
+			const prevMovieEnd = this.addMinutes(
+				prevItem.startTime,
+				prevItem.duration - flex.allowEarlyExit,
 			);
 
-			// Horário máximo de entrada: início da sessão + margem de atraso
-			const maxEntryTime = currentItem.effectiveStart;
+			// Adicionar tempo de intervalo/deslocamento
+			const earliestNextStart = this.addMinutes(prevMovieEnd, flex.breakTime);
 
-			// Verifica se há conflito
-			if (this.timeToMinutes(maxEntryTime) < this.timeToMinutes(minNextStart)) {
+			// Calcular o horário limite para entrar no próximo filme
+			const latestEntryTime = this.addMinutes(
+				currentItem.startTime,
+				flex.allowLateEntry,
+			);
+
+			// CONFLITO: Se o horário mais cedo que posso chegar é DEPOIS do horário limite de entrada
+			if (
+				this.timeToMinutes(earliestNextStart) >
+				this.timeToMinutes(latestEntryTime)
+			) {
 				const timeDiff =
-					this.timeToMinutes(minNextStart) - this.timeToMinutes(maxEntryTime);
+					this.timeToMinutes(earliestNextStart) -
+					this.timeToMinutes(latestEntryTime);
+
 				conflicts.push(
-					`Conflito: ${prevItem.movie.title} (sai às ${prevItem.effectiveEnd}) + intervalo ${prevItem.travelTime}min = ${minNextStart}, mas ${currentItem.movie.title} permite entrada só até ${maxEntryTime} (${timeDiff}min de diferença)`,
+					`❌ CONFLITO: ${prevItem.movie.title} termina às ${prevMovieEnd} ` +
+						`(saída antecipada de ${flex.allowEarlyExit}min aplicada). ` +
+						`Com ${flex.breakTime}min de intervalo, você chegaria às ${earliestNextStart}. ` +
+						`Mas ${currentItem.movie.title} começa às ${currentItem.startTime} ` +
+						`e aceita entrada até ${latestEntryTime} (${flex.allowLateEntry}min de atraso). ` +
+						`Faltam ${timeDiff} minutos.`,
 				);
 				feasible = false;
 			} else {
-				// Adiciona informação de folga disponível
-				const extraTime =
-					this.timeToMinutes(maxEntryTime) - this.timeToMinutes(minNextStart);
-				if (extraTime > 0) {
-					conflicts.push(
-						`✅ Folga de ${extraTime} minutos entre ${prevItem.movie.title} e ${currentItem.movie.title}`,
-					);
-				}
+				// Sem conflito - calcular folga disponível
+				const availableTime =
+					this.timeToMinutes(latestEntryTime) -
+					this.timeToMinutes(earliestNextStart);
+
+				conflicts.push(
+					`✅ Viável: ${prevItem.movie.title} → ${currentItem.movie.title} ` +
+						`(${availableTime} minutos de folga)`,
+				);
 			}
 		}
 

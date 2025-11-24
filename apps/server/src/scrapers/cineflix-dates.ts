@@ -40,7 +40,11 @@ export class DateScraper {
 		try {
 			// Passo 1: Construir URL com cinema e data atual
 			const today = new Date();
-			const currentDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+			// Formatar data no timezone local (evita problema de UTC)
+			const year = today.getFullYear();
+			const month = String(today.getMonth() + 1).padStart(2, "0");
+			const day = String(today.getDate()).padStart(2, "0");
+			const currentDate = `${year}-${month}-${day}`; // YYYY-MM-DD no timezone local
 			const targetUrl = `https://www.cineflix.com.br/fullSchedule/${cinemaCode}/${currentDate}`;
 
 			console.log(`🌐 Acessando: ${targetUrl}`);
@@ -69,7 +73,7 @@ export class DateScraper {
 
 			for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 				try {
-					await page.waitForSelector("#data-desktop", { timeout: 15000 });
+					await page.waitForSelector("#data-desktop", { timeout: 20000 });
 					selectorFound = true;
 					break;
 				} catch {
@@ -78,9 +82,8 @@ export class DateScraper {
 					);
 
 					if (attempt < maxAttempts) {
-						// Tentar recarregar a página se necessário
-						await page.reload({ waitUntil: "domcontentloaded" });
-						await page.waitForTimeout(3000);
+						// Apenas aguardar mais tempo sem recarregar
+						await page.waitForTimeout(5000);
 					}
 				}
 			}
@@ -179,7 +182,10 @@ export class DateScraper {
 			return {
 				success: false,
 				cinema: cinemaCode,
-				currentDate: new Date().toISOString().split("T")[0],
+				currentDate: (() => {
+					const d = new Date();
+					return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+				})(),
 				totalDates: 0,
 				availableDates: [],
 				error: error instanceof Error ? error.message : "Erro desconhecido",
@@ -234,7 +240,10 @@ export class DateScraper {
 				results[cinemaCode] = {
 					success: false,
 					cinema: cinemaCode,
-					currentDate: new Date().toISOString().split("T")[0],
+					currentDate: (() => {
+						const d = new Date();
+						return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+					})(),
 					totalDates: 0,
 					availableDates: [],
 					error: error instanceof Error ? error.message : "Erro desconhecido",

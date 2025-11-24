@@ -68,6 +68,7 @@ export async function sessionsRoutes(app: FastifyInstance) {
 					include: {
 						sessions: true,
 					},
+					distinct: ["id"],
 					orderBy: { title: "asc" },
 				});
 

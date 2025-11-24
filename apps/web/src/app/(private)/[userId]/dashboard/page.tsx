@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Calendar, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -115,27 +116,27 @@ export default function DashboardPage() {
 					</Link>
 
 					<nav className="hidden items-center gap-7 md:flex">
-						<Link
+						<a
 							href="/em-cartaz"
 							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
 							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 						>
 							Em Cartaz
-						</Link>
-						<Link
+						</a>
+						<a
 							href="/em-breve"
 							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
 							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 						>
 							Em breve
-						</Link>
-						<Link
+						</a>
+						<a
 							href="/cinemas"
 							className="font-normal text-[14px] text-white/70 transition-colors hover:text-white"
 							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 						>
 							Cinemas
-						</Link>
+						</a>
 					</nav>
 
 					<div className="flex items-center gap-3">
@@ -155,11 +156,16 @@ export default function DashboardPage() {
 
 			{/* Main Content */}
 			<main className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-				<div className="mb-8">
-					<h1 className="font-manrope text-3xl text-white">Meus Cronogramas</h1>
-					<p className="text-white/60">
-						Gerencie seus cronogramas de filmes personalizados
-					</p>
+				<div className="mb-8 flex items-center justify-between">
+					<h1 className="font-bold text-3xl text-white tracking-tight">
+						Meus Cronogramas
+					</h1>
+					<Link href={`/${session.user.id}/create-schedule`}>
+						<Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary/90">
+							<Plus className="mr-2 h-4 w-4" />
+							Novo Cronograma
+						</Button>
+					</Link>
 				</div>
 
 				{schedulesLoading ? (
@@ -170,27 +176,30 @@ export default function DashboardPage() {
 						</div>
 					</div>
 				) : schedules.length === 0 ? (
-					<div className="relative flex min-h-[400px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
-						<div className="text-center">
-							<h3 className="font-manrope text-lg text-white">
-								Nenhum cronograma ainda
-							</h3>
-							<p className="mb-6 text-white/60">
-								Crie seu primeiro cronograma de filmes personalizado
-							</p>
-							<Link
-								href={`/${session.user.id}/create-schedule`}
-								className="inline-flex items-center rounded-lg bg-primary px-4 py-2 font-medium text-white transition-colors hover:bg-primary/90"
-							>
-								Começar Agora
-							</Link>
+					<div className="fade-in zoom-in-95 flex animate-in flex-col items-center justify-center rounded-3xl border border-white/10 border-dashed bg-white/5 p-12 text-center duration-500">
+						<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+							<Calendar className="h-10 w-10 text-primary" />
 						</div>
-						{/* <LightRays /> */}
+						<h3 className="mb-2 font-semibold text-white text-xl">
+							Nenhum cronograma encontrado
+						</h3>
+						<p className="mb-8 max-w-md text-white/60">
+							Você ainda não criou nenhum cronograma. Comece agora mesmo e
+							organize sua maratona de filmes!
+						</p>
+						<Link href={`/${session.user.id}/create-schedule`}>
+							<Button
+								size="lg"
+								className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+							>
+								Criar meu primeiro cronograma
+							</Button>
+						</Link>
 					</div>
 				) : (
 					<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 						{schedules.map((schedule: Schedule) => (
-							<Link
+							<a
 								key={schedule.id}
 								href={`/${session.user.id}/schedule/${schedule.id}`}
 								className="group rounded-xl border border-white/10 bg-white/5 p-6 transition-all hover:border-white/20 hover:bg-white/10"
@@ -211,7 +220,7 @@ export default function DashboardPage() {
 									</p>
 									<p>⏳ {formatDuration(schedule.totalDuration)}</p>
 								</div>
-							</Link>
+							</a>
 						))}
 					</div>
 				)}

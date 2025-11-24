@@ -28,10 +28,16 @@ export class CronService {
 		// 1. Scraping de Cinemas - Semanalmente (Domingo às 02:00)
 		this.scheduleCinemasScraping();
 
-		// 2. Limpeza de Cronogramas Expirados - A cada 6 horas
+		// 2. Atualização Diária de Datas - Todo dia às 06:00
+		this.scheduleDailyDatesUpdate();
+
+		// 5. Limpeza de Filmes Passados - Diariamente às 01:00
+		this.schedulePastMoviesCleanup();
+
+		// 3. Limpeza de Cronogramas Expirados - A cada 6 horas
 		this.scheduleScheduleCleanup();
 
-		// 3. Limpeza de Cronogramas por Data - Diariamente (Todo dia às 00:15)
+		// 4. Limpeza de Cronogramas por Data - Diariamente (Todo dia às 00:15)
 		this.scheduleExpiredSchedulesByDate();
 
 		console.log("✅ Todos os Cron Jobs foram inicializados com sucesso!");
@@ -86,6 +92,174 @@ export class CronService {
 		this.jobs.set("cinemas-scraping", job);
 		job.start();
 		console.log("Cron Job de Cinemas agendado: Domingos às 02:00");
+	}
+
+	/**
+	 * Atualização Diária de Datas - Todo dia às 06:00
+	 */
+	private scheduleDailyDatesUpdate(): void {
+		const job = cron.schedule(
+			"0 6 * * *", // Todo dia às 06:00
+			async () => {
+				console.log("📅 Iniciando atualização diária de datas...");
+				try {
+					const { DateScraper } = await import("@/scrapers/cineflix-dates");
+					const dateScraper = new DateScraper();
+
+					// Buscar TODOS os cinemas do banco de dados
+					const cinemas = await Prisma.cinema.findMany({
+						select: { code: true, name: true },
+					});
+
+					if (cinemas.length === 0) {
+						console.warn("⚠️ Nenhum cinema encontrado no banco de dados");
+						return;
+					}
+
+					console.log(`📋 ${cinemas.length} cinemas para atualizar datas`);
+
+					for (const cinema of cinemas) {
+						console.log(`🏛️ Atualizando datas para: ${cinema.code}`);
+
+						try {
+							// Buscar datas disponíveis
+							const datesResponse = await dateScraper.getAvailableDates(
+								cinema.code,
+							);
+
+							if (
+								!datesResponse.success ||
+								datesResponse.availableDates.length === 0
+							) {
+								console.log(`⚠️ Nenhuma data disponível para ${cinema.code}`);
+								continue;
+							}
+
+							// Salvar/atualizar datas no banco
+							for (const dateOption of datesResponse.availableDates) {
+								await Prisma.availableDate.upsert({
+									where: {
+										cinemaCode_value: {
+											cinemaCode: cinema.code,
+											value: dateOption.value,
+										},
+									},
+									update: {
+										displayText: dateOption.displayText,
+										dayOfWeek: dateOption.dayOfWeek,
+										dayNumber: dateOption.dayNumber,
+										updatedAt: new Date(),
+									},
+									create: {
+										cinemaCode: cinema.code,
+										value: dateOption.value,
+										displayText: dateOption.displayText,
+										dayOfWeek: dateOption.dayOfWeek,
+										dayNumber: dateOption.dayNumber,
+									},
+								});
+							}
+
+							console.log(
+								`✅ ${datesResponse.availableDates.length} datas atualizadas para ${cinema.code}`,
+							);
+						} catch (error) {
+							console.error(
+								`❌ Erro ao atualizar datas para ${cinema.code}:`,
+								error,
+							);
+						}
+
+						// Pausa entre cinemas
+						await new Promise((resolve) => setTimeout(resolve, 2000));
+					}
+
+					console.log("✅ Atualização diária de datas concluída!");
+				} catch (error) {
+					console.error("❌ Erro durante atualização diária de datas:", error);
+				}
+			},
+			{
+				timezone: "America/Sao_Paulo",
+			},
+		);
+
+		this.jobs.set("daily-dates-update", job);
+		job.start();
+		console.log(
+			"Cron Job de Atualização de Datas agendado: Diariamente às 06:00",
+		);
+	}
+
+	/**
+	 * Limpeza de Filmes Passados - Diariamente às 01:00
+	 */
+	private schedulePastMoviesCleanup(): void {
+		const job = cron.schedule(
+			"0 1 * * *", // Todo dia às 01:00
+			async () => {
+				console.log("🗑️ Iniciando limpeza de filmes passados...");
+				try {
+					// Calcular data de ontem
+					const yesterday = new Date();
+					yesterday.setDate(yesterday.getDate() - 1);
+					const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+					// Buscar filmes de datas passadas
+					const pastMovies = await Prisma.movie.findMany({
+						where: {
+							date: {
+								lt: yesterdayStr,
+							},
+						},
+						select: {
+							id: true,
+							date: true,
+							title: true,
+						},
+					});
+
+					if (pastMovies.length > 0) {
+						const movieIds = pastMovies.map((m) => m.id);
+
+						// Deletar sessões primeiro (foreign key)
+						const sessionsDeleted = await Prisma.movieSession.deleteMany({
+							where: {
+								movieId: {
+									in: movieIds,
+								},
+							},
+						});
+
+						// Deletar filmes
+						const moviesDeleted = await Prisma.movie.deleteMany({
+							where: {
+								id: {
+									in: movieIds,
+								},
+							},
+						});
+
+						console.log(
+							`✅ Limpeza concluída: ${moviesDeleted.count} filmes e ${sessionsDeleted.count} sessões removidos (data < ${yesterdayStr})`,
+						);
+					} else {
+						console.log("ℹ️ Nenhum filme passado encontrado para remover");
+					}
+				} catch (error) {
+					console.error("❌ Erro durante limpeza de filmes passados:", error);
+				}
+			},
+			{
+				timezone: "America/Sao_Paulo",
+			},
+		);
+
+		this.jobs.set("past-movies-cleanup", job);
+		job.start();
+		console.log(
+			"Cron Job de Limpeza de Filmes Passados agendado: Diariamente às 01:00",
+		);
 	}
 
 	/**
@@ -183,9 +357,7 @@ export class CronService {
 
 		this.jobs.set("expired-schedules-by-date", job);
 		job.start();
-		console.log(
-			"Cron Job de Limpeza por Data agendado: Diariamente às 00:15",
-		);
+		console.log("Cron Job de Limpeza por Data agendado: Diariamente às 00:15");
 	}
 
 	/**

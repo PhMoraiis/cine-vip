@@ -3,11 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { FaqModal } from "@/components/faq-modal";
 import { Button } from "@/components/ui/button";
+import { signOut, useSession } from "@/lib/auth-client";
 
 export default function Home() {
 	const router = useRouter();
+	const [showFaqModal, setShowFaqModal] = useState(false);
+	const { data: session } = useSession();
 
 	useEffect(() => {
 		// In-view reveal: add final classes when observed
@@ -66,7 +70,7 @@ export default function Home() {
 					className="absolute inset-0"
 					style={{
 						backgroundImage:
-						"linear-gradient(180deg, #0b0e13 0%, #0c1118 45%, #0a0d14 100%)",
+							"linear-gradient(180deg, #0b0e13 0%, #0c1118 45%, #0a0d14 100%)",
 					}}
 				/>
 
@@ -137,21 +141,47 @@ export default function Home() {
 						</div>
 					</Link>
 					<div className="flex items-center gap-3">
-						<Button
-							className="hidden cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
-							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-							onClick={() => {
-								router.push("/auth");
-							}}
-						>
-							Entrar
-						</Button>
-						<Button
-							className="cursor-pointer rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
-							style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-						>
-							Download App
-						</Button>
+						{session ? (
+							<>
+								<Button
+									className="cursor-pointer rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
+									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
+									onClick={() => {
+										router.push(`/${session.user.id}/dashboard`);
+									}}
+								>
+									Dashboard
+								</Button>
+								<Button
+									className="cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-white/10 hover:ring-white/20 active:scale-[0.99]"
+									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
+									onClick={async () => {
+										await signOut();
+										router.push("/");
+									}}
+								>
+									Sair
+								</Button>
+							</>
+						) : (
+							<>
+								<Button
+									className="hidden cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
+									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
+									onClick={() => {
+										router.push("/auth");
+									}}
+								>
+									Entrar
+								</Button>
+								<Button
+									className="cursor-pointer rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
+									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
+								>
+									Download App
+								</Button>
+							</>
+						)}
 					</div>
 				</div>
 				<div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -342,9 +372,7 @@ export default function Home() {
 								<Button
 									className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 font-normal text-[#0b0e13] text-[15px] shadow-md ring-1 ring-white/80 transition-all hover:bg-white/90 hover:ring-white active:scale-[0.99]"
 									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-									onClick={() => {
-										router.push("/em-cartaz");
-									}}
+									onClick={() => setShowFaqModal(true)}
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -353,37 +381,14 @@ export default function Home() {
 										viewBox="0 0 24 24"
 										strokeWidth="1.5"
 									>
-										<title>Watch trailers</title>
+										<title>Como funciona</title>
 										<path
 											strokeLinecap="round"
 											strokeLinejoin="round"
 											d="M8 5v14l11-7-11-7z"
 										/>
 									</svg>
-									Assistir trailers
-								</Button>
-								<Button
-									className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-4 py-2 font-normal text-[15px] text-white shadow-md ring-1 ring-white/10 transition-all hover:bg-white/10 hover:ring-white/20 active:scale-[0.99]"
-									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
-									onClick={() => {
-										router.push("/suporte");
-									}}
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										className="h-[18px] w-[18px] stroke-white/90"
-										fill="none"
-										viewBox="0 0 24 24"
-										strokeWidth="1.5"
-									>
-										<title>How it works</title>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											d="M10.5 6.75 4.5 12l6 5.25M19.5 18.75h-6"
-										/>
-									</svg>
-									Como Funciona
+									Como Funciona ?
 								</Button>
 							</div>
 						</div>
@@ -963,6 +968,9 @@ export default function Home() {
 					</div>
 				</div>
 			</footer>
+
+			{/* FAQ Modal */}
+			<FaqModal open={showFaqModal} onOpenChange={setShowFaqModal} />
 		</div>
 	);
 }

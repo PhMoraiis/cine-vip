@@ -1,16 +1,17 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { LoaderCircleIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { CinemaSelectionStep } from "@/components/create-schedule/cinema-selection-step";
+import { MovieSelectionStep } from "@/components/create-schedule/movie-selection-step";
+import { ScheduleNameStep } from "@/components/create-schedule/schedule-name-step";
+import { ScheduleSelectionStep } from "@/components/create-schedule/schedule-selection-step";
+import { StepsIndicator } from "@/components/create-schedule/steps-indicator";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { signOut, useSession } from "@/lib/auth-client";
 
 interface Cinema {
@@ -61,6 +62,9 @@ interface ScheduleItem {
 	startTime: string;
 	endTime: string;
 	travelTime: number;
+	movie?: {
+		title: string;
+	};
 }
 
 type Step = "cinema" | "movies" | "schedules" | "name";
@@ -70,10 +74,6 @@ export default function CreateSchedulePage() {
 	const router = useRouter();
 	const params = useParams();
 	const userIdFromUrl = params.userId as string;
-	const scheduleNameId = useId();
-	const lateEntryId = useId();
-	const earlyExitId = useId();
-	const breakTimeId = useId();
 
 	// State
 	const [step, setStep] = useState<Step>("cinema");
@@ -85,8 +85,6 @@ export default function CreateSchedulePage() {
 	);
 	const [scheduleName, setScheduleName] = useState<string>("");
 	const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
-	const [showDateSelector, setShowDateSelector] = useState(false);
-	const [showFlexibilitySettings, setShowFlexibilitySettings] = useState(false);
 	const [flexibilityOptions, setFlexibilityOptions] = useState({
 		allowLateEntry: 5,
 		allowEarlyExit: 5,
@@ -132,13 +130,24 @@ export default function CreateSchedulePage() {
 			return response.json();
 		},
 		onSuccess: (data) => {
-			setAvailableDates(data.availableDates || []);
-			// Selecionar automaticamente a primeira data após o scraping
-			const firstDate = data.availableDates?.[0]?.value;
-			if (firstDate) {
-				setSelectedDate(firstDate);
-				setStep("movies");
+			const dates = data.availableDates || [];
+			setAvailableDates(dates);
+
+			if (dates.length > 0) {
+				toast.success("Datas atualizadas com sucesso!");
+				// Selecionar automaticamente a primeira data após o scraping
+				const firstDate = dates[0]?.value;
+				if (firstDate) {
+					setSelectedDate(firstDate);
+					setStep("movies");
+				}
+			} else {
+				toast.warning("Nenhuma data encontrada para este cinema.");
 			}
+		},
+		onError: (error) => {
+			console.error("Erro ao buscar datas:", error);
+			toast.error("Erro ao buscar datas atualizadas.");
 		},
 	});
 
@@ -158,18 +167,33 @@ export default function CreateSchedulePage() {
 			const dates = data.availableDates || [];
 			setAvailableDates(dates);
 
+			if (dates.length === 0 && selectedCinema) {
+				// Se não houver datas, tentar fazer scraping
+				toast.info("Buscando datas atualizadas...");
+				scrapeDates.mutate(selectedCinema.code);
+				return;
+			}
+
 			// Verificar se a primeira data é diferente de hoje
 			const today = new Date().toISOString().split("T")[0];
 			const firstDate = dates[0]?.value;
 
 			if (firstDate && firstDate !== today && selectedCinema) {
 				// Fazer scraping de datas se a primeira data não for hoje
+				// Mas não bloquear o usuário, deixar ele ver as datas antigas enquanto atualiza
+				toast.info("Verificando novas datas...");
 				scrapeDates.mutate(selectedCinema.code);
-			} else if (firstDate) {
-				// Selecionar automaticamente a primeira data (hoje)
+			}
+
+			if (firstDate) {
+				// Selecionar automaticamente a primeira data
 				setSelectedDate(firstDate);
 				setStep("movies");
 			}
+		},
+		onError: (error) => {
+			console.error("Erro ao buscar datas:", error);
+			toast.error("Erro ao buscar datas disponíveis.");
 		},
 	});
 
@@ -188,7 +212,8 @@ export default function CreateSchedulePage() {
 					method: "POST",
 				},
 			);
-			if (!response.ok) throw new Error("Failed to scrape sessions");
+			if (!response.ok && response.status !== 202)
+				throw new Error("Failed to scrape sessions");
 			return response.json();
 		},
 	});
@@ -215,8 +240,17 @@ export default function CreateSchedulePage() {
 
 			const data = await response.json();
 
-			// Se retornar mas não houver filmes, fazer scraping
-			if (!data.movies || data.movies.length === 0) {
+			// Se estiver fazendo scraping, retornar dados para polling
+			if (
+				data.scrapingJob &&
+				(data.scrapingJob.status === "PENDING" ||
+					data.scrapingJob.status === "RUNNING")
+			) {
+				return data;
+			}
+
+			// Se retornar mas não houver filmes e não estiver fazendo scraping, fazer scraping
+			if ((!data.movies || data.movies.length === 0) && !data.scrapingJob) {
 				const scrapeResponse = await scrapeSessions.mutateAsync({
 					cinemaCode: selectedCinema.code,
 					date: selectedDate,
@@ -227,6 +261,14 @@ export default function CreateSchedulePage() {
 			return data;
 		},
 		enabled: !!selectedCinema && !!selectedDate && step === "movies",
+		refetchInterval: (query) => {
+			const data = query.state.data;
+			const status = data?.scrapingJob?.status || data?.job?.status;
+			if (status === "PENDING" || status === "RUNNING") {
+				return 5000;
+			}
+			return false;
+		},
 	});
 
 	// Mutation para gerar cronogramas
@@ -276,6 +318,7 @@ export default function CreateSchedulePage() {
 		},
 		onError: (error) => {
 			console.error("❌ Mutation error:", error);
+			toast.error("Erro ao gerar cronogramas.");
 		},
 	});
 
@@ -304,7 +347,12 @@ export default function CreateSchedulePage() {
 			return response.json();
 		},
 		onSuccess: () => {
+			toast.success("Cronograma salvo com sucesso!");
 			router.push(`/${session?.user?.id}/dashboard`);
+		},
+		onError: (error) => {
+			console.error("Erro ao salvar cronograma:", error);
+			toast.error("Erro ao salvar cronograma.");
 		},
 	});
 
@@ -356,6 +404,9 @@ export default function CreateSchedulePage() {
 				setStep("schedules");
 			} else {
 				console.error("❌ Nenhum cronograma foi gerado");
+				toast.warning(
+					"Não foi possível gerar cronogramas com as opções selecionadas.",
+				);
 			}
 		} catch (error) {
 			console.error("Error generating schedules:", error);
@@ -386,27 +437,22 @@ export default function CreateSchedulePage() {
 	}
 
 	const cinemas: Cinema[] = cinemasData?.cinemas || [];
-	const movies: Movie[] = moviesData?.movies || [];
+
+	// Deduplicate movies by ID to prevent duplicates
+	const rawMovies: Movie[] = moviesData?.movies || [];
+	const moviesMap = new Map<string, Movie>();
+	rawMovies.forEach((movie) => {
+		if (!moviesMap.has(movie.id)) {
+			moviesMap.set(movie.id, movie);
+		}
+	});
+	const movies: Movie[] = Array.from(moviesMap.values());
+
 	// A API retorna 'recommendations' em vez de 'schedules'
 	const schedules: Schedule[] =
 		generateSchedules.data?.recommendations ||
 		generateSchedules.data?.schedules ||
 		[];
-
-	// Agrupar cinemas por estado
-	const cinemasByState = cinemas.reduce(
-		(acc, cinema) => {
-			const state = cinema.state || "Outros";
-			if (!acc[state]) {
-				acc[state] = [];
-			}
-			acc[state].push(cinema);
-			return acc;
-		},
-		{} as Record<string, Cinema[]>,
-	);
-
-	const sortedStates = Object.keys(cinemasByState).sort();
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -468,664 +514,68 @@ export default function CreateSchedulePage() {
 				</div>
 
 				{/* Steps Indicator */}
-				<div className="mb-8 flex items-center gap-4">
-					{["cinema", "movies", "schedules", "name"].map((s, index) => (
-						<div key={s} className="flex items-center gap-2">
-							<div
-								className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm ${
-									step === s
-										? "bg-blue-600 text-white"
-										: index <
-												["cinema", "movies", "schedules", "name"].indexOf(step)
-											? "bg-green-600 text-white"
-											: "bg-white/10 text-white/40"
-								}`}
-							>
-								{index + 1}
-							</div>
-							{index < 3 && <div className="h-px w-12 bg-white/10" />}
-						</div>
-					))}
-				</div>
+				<StepsIndicator currentStep={step} />
 
 				{/* Step: Selecionar Cinema */}
 				{step === "cinema" && (
-					<div className="space-y-6">
-						<h2 className="font-semibold text-white text-xl">
-							Selecione um Cinema
-						</h2>
-						{cinemasLoading ? (
-							<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-								{[1, 2, 3, 4, 5, 6].map((i) => (
-									<Skeleton key={i} className="h-20 w-full rounded-lg" />
-								))}
-							</div>
-						) : (
-							<div className="space-y-6">
-								{sortedStates.map((state) => (
-									<div key={state} className="space-y-3">
-										<h3 className="font-semibold text-lg text-white/80">
-											{state}
-										</h3>
-										<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-											{cinemasByState[state].map((cinema) => (
-												<button
-													key={cinema.id}
-													type="button"
-													onClick={() => handleSelectCinema(cinema)}
-													className="rounded-lg border border-white/10 bg-white/5 p-4 text-left transition-all hover:border-blue-500 hover:bg-white/10"
-												>
-													<h4 className="font-semibold text-white">
-														{cinema.name}
-													</h4>
-													<p className="text-sm text-white/60">
-														{cinema.state}
-													</p>
-												</button>
-											))}
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</div>
+					<CinemaSelectionStep
+						cinemas={cinemas}
+						isLoading={cinemasLoading}
+						onSelect={handleSelectCinema}
+					/>
 				)}
 
 				{/* Step: Selecionar Filmes */}
 				{step === "movies" && (
-					<div className="space-y-4">
-						<div className="flex flex-wrap items-center justify-between gap-4">
-							<div className="flex items-center gap-4">
-								<Button
-									variant="outline"
-									onClick={() => {
-										setStep("cinema");
-										setSelectedCinema(null);
-										setSelectedDate("");
-										setSelectedMovieIds([]);
-									}}
-									className="text-white"
-								>
-									← Voltar
-								</Button>
-								<div>
-									<h2 className="font-semibold text-white text-xl">
-										Selecione os Filmes
-									</h2>
-									<p className="text-sm text-white/60">
-										{selectedCinema?.name} - {selectedDate}
-									</p>
-								</div>
-							</div>
-
-							<div className="flex gap-3">
-								<Button
-									variant="outline"
-									onClick={() => setShowDateSelector(!showDateSelector)}
-									className="text-white"
-								>
-									📅 Trocar Data
-								</Button>
-								<Button
-									variant="outline"
-									onClick={() =>
-										setShowFlexibilitySettings(!showFlexibilitySettings)
-									}
-									className="text-white"
-								>
-									⚙️ Flexibilidade
-								</Button>
-								<Button
-									onClick={handleGenerateSchedules}
-									disabled={
-										selectedMovieIds.length === 0 || generateSchedules.isPending
-									}
-									className="bg-blue-600 hover:bg-blue-700"
-								>
-									{generateSchedules.isPending ? (
-										<>
-											<LoaderCircleIcon className="mr-2 h-4 w-4 animate-spin" />
-											Gerando...
-										</>
-									) : (
-										`Gerar Cronogramas (${selectedMovieIds.length})`
-									)}
-								</Button>
-							</div>
-						</div>
-
-						{/* Seletor de Data */}
-						{showDateSelector && (
-							<div className="rounded-lg border border-white/10 bg-white/5 p-4">
-								<h3 className="mb-3 font-medium text-white">
-									Datas Disponíveis
-								</h3>
-								{fetchAvailableDates.isPending || scrapeDates.isPending ? (
-									<div className="grid gap-3 md:grid-cols-4">
-										{[1, 2, 3, 4].map((i) => (
-											<Skeleton key={i} className="h-16 w-full rounded-lg" />
-										))}
-									</div>
-								) : (
-									<div className="grid gap-3 md:grid-cols-4">
-										{availableDates.map((date) => (
-											<button
-												key={date.value}
-												type="button"
-												onClick={() => {
-													handleSelectDate(date.value);
-													setShowDateSelector(false);
-												}}
-												className={`rounded-lg border p-3 text-left transition-all ${
-													selectedDate === date.value
-														? "border-blue-500 bg-blue-500/10"
-														: "border-white/10 bg-white/5 hover:border-blue-500 hover:bg-white/10"
-												}`}
-											>
-												<p className="font-semibold text-sm text-white">
-													{date.displayText}
-												</p>
-												<p className="text-white/60 text-xs">
-													{date.dayOfWeek}
-												</p>
-											</button>
-										))}
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Configurações de Flexibilidade */}
-						{showFlexibilitySettings && (
-							<div className="rounded-lg border border-white/10 bg-white/5 p-6">
-								<h3 className="mb-4 font-medium text-lg text-white">
-									⚙️ Configurações de Flexibilidade
-								</h3>
-								<p className="mb-6 text-sm text-white/60">
-									Ajuste as margens de tempo para tornar os cronogramas mais
-									flexíveis
-								</p>
-
-								<div className="grid gap-6 md:grid-cols-3">
-									<div className="space-y-2">
-										<Label htmlFor={lateEntryId} className="text-white">
-											Atraso Permitido
-										</Label>
-										<div className="flex items-center gap-3">
-											<Input
-												id={lateEntryId}
-												type="number"
-												min="0"
-												max="30"
-												value={flexibilityOptions.allowLateEntry}
-												onChange={(e) =>
-													setFlexibilityOptions({
-														...flexibilityOptions,
-														allowLateEntry:
-															Number.parseInt(e.target.value, 10) || 0,
-													})
-												}
-												className="w-20"
-											/>
-											<span className="text-sm text-white/60">minutos</span>
-										</div>
-										<p className="text-white/50 text-xs">
-											Você pode chegar até este tempo após o início da sessão
-										</p>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor={earlyExitId} className="text-white">
-											Saída Antecipada
-										</Label>
-										<div className="flex items-center gap-3">
-											<Input
-												id={earlyExitId}
-												type="number"
-												min="0"
-												max="30"
-												value={flexibilityOptions.allowEarlyExit}
-												onChange={(e) =>
-													setFlexibilityOptions({
-														...flexibilityOptions,
-														allowEarlyExit:
-															Number.parseInt(e.target.value, 10) || 0,
-													})
-												}
-												className="w-20"
-											/>
-											<span className="text-sm text-white/60">minutos</span>
-										</div>
-										<p className="text-white/50 text-xs">
-											Você pode sair este tempo antes do fim do filme
-										</p>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor={breakTimeId} className="text-white">
-											Intervalo Entre Filmes
-										</Label>
-										<div className="flex items-center gap-3">
-											<Input
-												id={breakTimeId}
-												type="number"
-												min="0"
-												max="60"
-												value={flexibilityOptions.breakTime}
-												onChange={(e) =>
-													setFlexibilityOptions({
-														...flexibilityOptions,
-														breakTime: Number.parseInt(e.target.value, 10) || 0,
-													})
-												}
-												className="w-20"
-											/>
-											<span className="text-sm text-white/60">minutos</span>
-										</div>
-										<p className="text-white/50 text-xs">
-											Tempo de descanso/deslocamento entre sessões
-										</p>
-									</div>
-								</div>
-
-								<div className="mt-6 rounded-lg bg-blue-500/10 p-4">
-									<p className="text-blue-400 text-sm">
-										💡 <strong>Resumo:</strong> Você pode chegar até{" "}
-										{flexibilityOptions.allowLateEntry}min atrasado, sair{" "}
-										{flexibilityOptions.allowEarlyExit}min antes do fim, com{" "}
-										{flexibilityOptions.breakTime}min de intervalo entre filmes.
-									</p>
-								</div>
-							</div>
-						)}
-
-						{moviesLoading ? (
-							<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-								{[1, 2, 3, 4, 5, 6].map((i) => (
-									<Skeleton key={i} className="h-40 w-full rounded-lg" />
-								))}
-							</div>
-						) : movies.length === 0 ? (
-							<div className="rounded-lg border border-white/10 bg-white/5 p-8 text-center">
-								<p className="text-white/60">
-									Nenhum filme disponível para esta data
-								</p>
-							</div>
-						) : (
-							<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-								{movies.map((movie) => (
-									<div
-										key={movie.id}
-										className={`rounded-lg border transition-all ${
-											selectedMovieIds.includes(movie.id)
-												? "border-blue-500 bg-blue-500/10"
-												: "border-white/10 bg-white/5"
-										}`}
-									>
-										{/* Header com Checkbox e Poster */}
-										<div className="relative">
-											{movie.posterUrl && (
-												<div className="relative h-64 w-full overflow-hidden rounded-t-lg">
-													<Image
-														src={movie.posterUrl}
-														alt={movie.title}
-														fill
-														className="object-cover"
-													/>
-													<div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-												</div>
-											)}
-
-											{movie.posterUrl ? (
-												<div className="absolute inset-x-3 bottom-3">
-													<div className="flex items-start gap-3">
-														<Checkbox
-															checked={selectedMovieIds.includes(movie.id)}
-															onCheckedChange={() =>
-																handleToggleMovie(movie.id)
-															}
-															className="mt-1 bg-white/90"
-														/>
-														<div className="flex-1">
-															<h3 className="font-semibold text-white">
-																{movie.title}
-															</h3>
-														</div>
-													</div>
-												</div>
-											) : (
-												<div className="p-4">
-													<div className="flex items-start gap-3">
-														<Checkbox
-															checked={selectedMovieIds.includes(movie.id)}
-															onCheckedChange={() =>
-																handleToggleMovie(movie.id)
-															}
-															className="mt-1 bg-white/90"
-														/>
-														<div className="flex-1">
-															<h3 className="font-semibold text-white">
-																{movie.title}
-															</h3>
-														</div>
-													</div>
-												</div>
-											)}
-										</div>
-
-										{/* Informações do Filme */}
-										<div className="space-y-3 p-4">
-											{/* Metadados */}
-											<div className="flex flex-wrap gap-2 text-xs">
-												{movie.genre && (
-													<span className="rounded-full bg-purple-500/20 px-2 py-1 text-purple-300">
-														{movie.genre}
-													</span>
-												)}
-												{movie.duration && (
-													<span className="rounded-full bg-blue-500/20 px-2 py-1 text-blue-300">
-														⏱️ {movie.duration}
-													</span>
-												)}
-												{movie.rating && (
-													<span className="rounded-full bg-yellow-500/20 px-2 py-1 text-yellow-300">
-														{movie.rating}
-													</span>
-												)}
-											</div>
-
-											{/* Sessões Disponíveis */}
-											<div className="space-y-2">
-												<p className="font-medium text-sm text-white/80">
-													📍 {movie.sessions.length} sessões disponíveis:
-												</p>
-												<div className="grid grid-cols-3 gap-2">
-													{movie.sessions.slice(0, 6).map((session) => (
-														<div
-															key={session.id}
-															className="rounded bg-white/5 px-2 py-1 text-center"
-														>
-															<p className="font-medium text-white text-xs">
-																{session.time}
-															</p>
-															{session.sessionType && (
-																<p className="text-[10px] text-white/50">
-																	{session.sessionType}
-																</p>
-															)}
-														</div>
-													))}
-												</div>
-												{movie.sessions.length > 6 && (
-													<p className="text-center text-white/40 text-xs">
-														+{movie.sessions.length - 6} mais sessões
-													</p>
-												)}
-											</div>
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</div>
+					<MovieSelectionStep
+						movies={movies}
+						isLoading={moviesLoading}
+						selectedMovieIds={selectedMovieIds}
+						onToggleMovie={handleToggleMovie}
+						onGenerate={handleGenerateSchedules}
+						isGenerating={generateSchedules.isPending}
+						availableDates={availableDates}
+						selectedDate={selectedDate}
+						onSelectDate={handleSelectDate}
+						flexibilityOptions={flexibilityOptions}
+						setFlexibilityOptions={setFlexibilityOptions}
+						onBack={() => {
+							setStep("cinema");
+							setSelectedCinema(null);
+							setSelectedDate("");
+							setSelectedMovieIds([]);
+						}}
+						cinemaName={selectedCinema?.name}
+						isLoadingDates={
+							fetchAvailableDates.isPending || scrapeDates.isPending
+						}
+						isScraping={
+							moviesData?.scrapingJob?.status === "PENDING" ||
+							moviesData?.scrapingJob?.status === "RUNNING" ||
+							moviesData?.job?.status === "PENDING" ||
+							moviesData?.job?.status === "RUNNING"
+						}
+					/>
 				)}
 
-				{/* Step: Ver Cronogramas Gerados */}
-				{step === "schedules" && schedules.length > 0 && (
-					<div className="space-y-4">
-						<div className="flex items-center gap-4">
-							<Button
-								variant="outline"
-								onClick={() => setStep("movies")}
-								className="text-white"
-							>
-								← Voltar
-							</Button>
-							<div>
-								<h2 className="font-semibold text-white text-xl">
-									Escolha um Cronograma
-								</h2>
-								<p className="text-sm text-white/60">
-									{schedules.length} cronogramas otimizados gerados
-								</p>
-							</div>
-						</div>
-
-						<div className="space-y-6">
-							{schedules.map((schedule) => {
-								// Separar conflitos de warnings
-								const realConflicts = schedule.conflicts.filter(
-									(c) => !c.startsWith("✅"),
-								);
-								const warnings = schedule.conflicts.filter((c) =>
-									c.startsWith("✅"),
-								);
-
-								return (
-									<button
-										key={schedule.id}
-										type="button"
-										onClick={() => handleSelectSchedule(schedule)}
-										disabled={!schedule.feasible}
-										className={`w-full rounded-lg border p-6 text-left transition-all ${
-											schedule.feasible
-												? "border-white/10 bg-white/5 hover:border-blue-500 hover:bg-white/10"
-												: "cursor-not-allowed border-red-500/30 bg-red-500/10 opacity-50"
-										}`}
-									>
-										{/* Header */}
-										<div className="mb-6 flex items-center justify-between">
-											<div>
-												<h3 className="font-semibold text-white text-xl">
-													{schedule.name}
-												</h3>
-												<p className="text-sm text-white/60">
-													⏱️ {schedule.startTime} - {schedule.endTime} • ⏳{" "}
-													{Math.floor(schedule.totalDuration / 60)}h{" "}
-													{schedule.totalDuration % 60}min
-												</p>
-											</div>
-											<span
-												className={`rounded-full px-3 py-1.5 text-sm ${
-													schedule.feasible
-														? "bg-green-600/20 text-green-400"
-														: "bg-red-600/20 text-red-400"
-												}`}
-											>
-												{schedule.feasible ? "✓ Viável" : "⚠ Conflito"}
-											</span>
-										</div>
-
-										{/* Timeline */}
-										<div className="space-y-4">
-											{schedule.items.map((item, index) => {
-												const movie = movies.find((m) => m.id === item.movieId);
-												if (!movie) return null;
-
-												const session = movie.sessions.find(
-													(s) => s.id === item.sessionId,
-												);
-												if (!session) return null;
-
-												return (
-													<div key={item.movieId} className="space-y-2">
-														{/* Travel time */}
-														{index > 0 && item.travelTime && (
-															<div className="flex items-center gap-2 text-white/40 text-xs">
-																<div className="h-4 w-px bg-white/20" />
-																<span>
-																	🚗 {item.travelTime} min de deslocamento
-																</span>
-															</div>
-														)}
-
-														{/* Movie session */}
-														<div className="flex gap-4">
-															{/* Poster */}
-															{movie.posterUrl ? (
-																<div className="relative h-40 w-28 shrink-0 overflow-hidden rounded-lg shadow-lg">
-																	<Image
-																		src={movie.posterUrl}
-																		alt={movie.title}
-																		fill
-																		className="object-cover"
-																	/>
-																</div>
-															) : (
-																<div className="flex h-40 w-28 shrink-0 items-center justify-center rounded-lg bg-white/5">
-																	<span className="text-4xl">🎬</span>
-																</div>
-															)}
-
-															{/* Info */}
-															<div className="min-w-0 flex-1">
-																<h4 className="font-semibold text-lg text-white">
-																	{movie.title}
-																</h4>
-																<div className="mt-2 flex flex-wrap items-center gap-2">
-																	<span className="rounded bg-blue-500/20 px-2.5 py-1 text-blue-300 text-sm">
-																		⏰ {session.time}
-																	</span>
-																	<span className="rounded bg-purple-500/20 px-2.5 py-1 text-purple-300 text-sm">
-																		{session.sessionType}
-																	</span>
-																	{movie.genre && (
-																		<span className="text-sm text-white/60">
-																			{movie.genre}
-																		</span>
-																	)}
-																	{movie.duration && (
-																		<span className="text-sm text-white/60">
-																			• {movie.duration} min
-																		</span>
-																	)}
-																	{movie.rating && (
-																		<span className="rounded bg-orange-500/20 px-2.5 py-1 text-orange-300 text-sm">
-																			{movie.rating}
-																		</span>
-																	)}
-																</div>
-															</div>
-														</div>
-													</div>
-												);
-											})}
-										</div>
-
-										{/* Footer com warnings e conflitos */}
-										{(warnings.length > 0 || realConflicts.length > 0) && (
-											<div className="mt-6 space-y-3 border-white/10 border-t pt-4">
-												{warnings.length > 0 && (
-													<div className="space-y-1">
-														<p className="font-medium text-green-400 text-xs">
-															✨ Folgas disponíveis:
-														</p>
-														<div className="space-y-0.5">
-															{warnings.slice(0, 3).map((warning) => (
-																<p
-																	key={warning}
-																	className="text-green-400/80 text-xs"
-																>
-																	{warning.replace("✅ Folga de ", "• ")}
-																</p>
-															))}
-															{warnings.length > 3 && (
-																<p className="text-green-400/60 text-xs">
-																	+{warnings.length - 3} mais folgas
-																</p>
-															)}
-														</div>
-													</div>
-												)}
-
-												{realConflicts.length > 0 && (
-													<div className="space-y-1">
-														<p className="font-medium text-red-400 text-xs">
-															⚠️ Conflitos:
-														</p>
-														<div className="space-y-0.5">
-															{realConflicts.slice(0, 3).map((conflict) => (
-																<p
-																	key={conflict}
-																	className="text-red-400/80 text-xs"
-																>
-																	• {conflict}
-																</p>
-															))}
-															{realConflicts.length > 3 && (
-																<p className="text-red-400/60 text-xs">
-																	+{realConflicts.length - 3} mais conflitos
-																</p>
-															)}
-														</div>
-													</div>
-												)}
-											</div>
-										)}
-									</button>
-								);
-							})}
-						</div>
-					</div>
+				{/* Step: Selecionar Cronograma */}
+				{step === "schedules" && (
+					<ScheduleSelectionStep
+						schedules={schedules}
+						onSelect={handleSelectSchedule}
+						onBack={() => setStep("movies")}
+					/>
 				)}
 
-				{/* Step: Nomear Cronograma */}
-				{step === "name" && selectedSchedule && (
-					<div className="space-y-4">
-						<div className="flex items-center gap-4">
-							<Button
-								variant="outline"
-								onClick={() => setStep("schedules")}
-								className="text-white"
-							>
-								← Voltar
-							</Button>
-							<h2 className="font-semibold text-white text-xl">
-								Nomear Cronograma
-							</h2>
-						</div>
-
-						<div className="mx-auto max-w-2xl space-y-4">
-							<div className="rounded-lg border border-white/10 bg-white/5 p-6">
-								<Label htmlFor={scheduleNameId} className="text-white">
-									Nome do Cronograma
-								</Label>
-								<Input
-									id={scheduleNameId}
-									value={scheduleName}
-									onChange={(e) => setScheduleName(e.target.value)}
-									placeholder="Ex: Maratona de Ação - Sábado"
-									className="mt-2"
-								/>
-
-								<div className="mt-6 space-y-2 text-sm text-white/60">
-									<p>📍 Cinema: {selectedCinema?.name}</p>
-									<p>📅 Data: {selectedDate}</p>
-									<p>
-										⏱️ {selectedSchedule.startTime} - {selectedSchedule.endTime}
-									</p>
-									<p>🎬 {selectedSchedule.items.length} filmes</p>
-								</div>
-							</div>
-
-							<div className="flex gap-4">
-								<Button
-									onClick={handleSaveSchedule}
-									disabled={!scheduleName.trim() || saveSchedule.isPending}
-									className="flex-1 bg-blue-600 hover:bg-blue-700"
-								>
-									{saveSchedule.isPending ? (
-										<>
-											<LoaderCircleIcon className="mr-2 h-4 w-4 animate-spin" />
-											Salvando...
-										</>
-									) : (
-										"Salvar Cronograma"
-									)}
-								</Button>
-							</div>
-						</div>
-					</div>
+				{/* Step: Nomear e Salvar */}
+				{step === "name" && (
+					<ScheduleNameStep
+						scheduleName={scheduleName}
+						setScheduleName={setScheduleName}
+						onSave={handleSaveSchedule}
+						isSaving={saveSchedule.isPending}
+						onBack={() => setStep("schedules")}
+					/>
 				)}
 			</main>
 		</div>

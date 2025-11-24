@@ -427,12 +427,6 @@ export class MoviesScraper {
 					}
 				}
 			}
-
-			// Screenshot final para debug
-			await page.screenshot({
-				path: `./cineflix-${cinemaCode}-${date}.png`,
-				fullPage: true,
-			});
 		} catch (error) {
 			console.error("Erro durante scraping avançado:", error);
 		} finally {
