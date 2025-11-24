@@ -22,8 +22,8 @@ export function ScheduleNameStep({
 	const id = useId();
 
 	return (
-		<div className="mx-auto max-w-md space-y-6">
-			<div className="text-center">
+		<div className="mx-auto mt-16 max-w-md space-y-6">
+			<div className="text-left">
 				<h2 className="font-semibold text-white text-xl">Nome do Cronograma</h2>
 				<p className="text-sm text-white/60">
 					Dê um nome para salvar seu cronograma
@@ -48,14 +48,14 @@ export function ScheduleNameStep({
 					<Button
 						variant="outline"
 						onClick={onBack}
-						className="flex-1 text-white"
+						className="flex-1 cursor-pointer text-white"
 					>
 						Voltar
 					</Button>
 					<Button
 						onClick={onSave}
 						disabled={!scheduleName.trim() || isSaving}
-						className="flex-1 bg-blue-600 hover:bg-blue-700"
+						className="flex-1 cursor-pointer bg-emerald-300/90 text-primary hover:bg-emerald-300/80"
 					>
 						{isSaving ? (
 							<>

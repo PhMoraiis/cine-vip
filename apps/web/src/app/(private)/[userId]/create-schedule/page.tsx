@@ -415,7 +415,7 @@ export default function CreateSchedulePage() {
 
 	const handleSelectSchedule = (schedule: Schedule) => {
 		setSelectedSchedule(schedule);
-		setScheduleName(`Cronograma ${selectedCinema?.name} - ${selectedDate}`);
+		setScheduleName("");
 		setStep("name");
 	};
 

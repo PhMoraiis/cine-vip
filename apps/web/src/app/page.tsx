@@ -245,39 +245,13 @@ export default function Home() {
 											</svg>
 											<input
 												type="text"
-												placeholder="Pesquisar cidade ou cinema"
+												placeholder="Interestelar"
 												className="w-full bg-transparent text-[15px] placeholder-white/40 focus:outline-none"
 												style={{
 													fontFamily: '"Manrope", ui-sans-serif, system-ui',
 												}}
 											/>
 										</label>
-
-										{/* Date */}
-										<label className="group flex w-full items-center gap-3 rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 transition-all hover:bg-white/10 hover:ring-white/20 sm:w-40">
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												className="h-5 w-5 stroke-white/80 group-hover:stroke-white"
-												fill="none"
-												viewBox="0 0 24 24"
-												strokeWidth="1.5"
-											>
-												<title>Date</title>
-												<path
-													strokeLinecap="round"
-													strokeLinejoin="round"
-													d="M8 3.75v2.5M16 3.75v2.5M3.75 9.75h16.5M5.25 6.25h13.5A1.5 1.5 0 0 1 20.25 7.75v10A2.5 2.5 0 0 1 17.75 20.25H6.25A2.5 2.5 0 0 1 3.75 17.75v-10A1.5 1.5 0 0 1 5.25 6.25z"
-												/>
-											</svg>
-											<input
-												type="date"
-												className="w-full bg-transparent text-[15px] text-white/90 [color-scheme:dark] focus:outline-none"
-												style={{
-													fontFamily: '"Manrope", ui-sans-serif, system-ui',
-												}}
-											/>
-										</label>
-
 										{/* Search Button */}
 										<Button
 											className="group inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2 font-normal text-[15px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
@@ -399,7 +373,7 @@ export default function Home() {
 								data-reveal
 								className="translate-y-6 rounded-2xl bg-white/5 p-5 opacity-80 shadow-md ring-1 ring-white/10 blur-[2px] backdrop-blur-xl transition-all delay-200 duration-700 ease-in-out"
 							>
-								<div className="flex items-center justify-between">
+								<div className="flex items-center justify-between gap-2">
 									<div className="flex items-center gap-2">
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
@@ -474,7 +448,7 @@ export default function Home() {
 														fontWeight: 400,
 													}}
 												>
-													Interstelar
+													Interestelar
 												</h3>
 												<span
 													className="rounded-md bg-white/5 px-2 py-1 text-[12px] text-white/70 ring-1 ring-white/10"
@@ -770,29 +744,6 @@ export default function Home() {
 										</svg>
 										Poltronas Reclináveis ​​• Estacionamento
 									</div>
-									<a
-										href="/"
-										className="inline-flex items-center gap-1.5 text-[13px] text-white/80 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white hover:decoration-white"
-										style={{
-											fontFamily: '"Manrope", ui-sans-serif, system-ui',
-										}}
-									>
-										Programação Completa
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className="h-[14px] w-[14px] stroke-white/80"
-											fill="none"
-											viewBox="0 0 24 24"
-											strokeWidth="1.5"
-										>
-											<title>Programação completa</title>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												d="M9 5l7 7-7 7"
-											/>
-										</svg>
-									</a>
 								</div>
 							</div>
 						</div>

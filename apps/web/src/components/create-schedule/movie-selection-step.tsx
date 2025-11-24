@@ -1,6 +1,7 @@
 import {
 	Calendar as CalendarIcon,
 	Check,
+	ChevronLeft,
 	Clock,
 	Info,
 	LoaderCircleIcon,
@@ -70,6 +71,7 @@ export function MovieSelectionStep({
 	onSelectDate,
 	flexibilityOptions,
 	setFlexibilityOptions,
+	onBack,
 	cinemaName,
 	isLoadingDates,
 	isScraping,
@@ -86,34 +88,44 @@ export function MovieSelectionStep({
 		<div className="fade-in slide-in-from-bottom-4 animate-in space-y-6 duration-500">
 			{/* Header e Controles */}
 			<div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-				<div>
-					<h2 className="font-bold text-2xl text-white tracking-tight">
-						Selecione os Filmes
-					</h2>
-					<p className="text-white/60">
-						{cinemaName} •{" "}
-						{selectedDate
-							? (() => {
-									// Parse date as local to avoid timezone issues
-									const [year, month, day] = selectedDate
-										.split("-")
-										.map(Number);
-									const date = new Date(year, month - 1, day);
-									return date.toLocaleDateString("pt-BR", {
-										weekday: "long",
-										day: "numeric",
-										month: "long",
-									});
-								})()
-							: "Selecione uma data"}
-					</p>
+				<div className="flex items-center gap-4">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={onBack}
+						className="h-10 w-10 shrink-0 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+					>
+						<ChevronLeft className="h-5 w-5" />
+					</Button>
+					<div>
+						<h2 className="font-bold text-2xl text-white tracking-tight">
+							Selecione os Filmes
+						</h2>
+						<p className="text-white/60">
+							{cinemaName} •{" "}
+							{selectedDate
+								? (() => {
+										// Parse date as local to avoid timezone issues
+										const [year, month, day] = selectedDate
+											.split("-")
+											.map(Number);
+										const date = new Date(year, month - 1, day);
+										return date.toLocaleDateString("pt-BR", {
+											weekday: "long",
+											day: "numeric",
+											month: "long",
+										});
+									})()
+								: "Selecione uma data"}
+						</p>
+					</div>
 				</div>
 
 				<div className="flex flex-wrap gap-3">
 					<Button
 						variant="outline"
 						onClick={() => setShowDateSelector(!showDateSelector)}
-						className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+						className="cursor-pointer border-white/10 bg-white/5 text-white hover:bg-white/10"
 					>
 						<CalendarIcon className="mr-2 h-4 w-4" />
 						Trocar Data
@@ -121,7 +133,7 @@ export function MovieSelectionStep({
 					<Button
 						variant="outline"
 						onClick={() => setShowFlexibilitySettings(!showFlexibilitySettings)}
-						className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+						className="cursor-pointer border-white/10 bg-white/5 text-white hover:bg-white/10"
 					>
 						<Clock className="mr-2 h-4 w-4" />
 						Flexibilidade
@@ -129,7 +141,7 @@ export function MovieSelectionStep({
 					<Button
 						onClick={onGenerate}
 						disabled={selectedMovieIds.length === 0 || isGenerating}
-						className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+						className="cursor-pointer bg-emerald-300/90 text-primary shadow-emerald-300/90/20 shadow-lg hover:bg-emerald-300/90/90"
 					>
 						{isGenerating ? (
 							<>
@@ -164,14 +176,13 @@ export function MovieSelectionStep({
 									}}
 									className={`rounded-lg border p-3 text-left transition-all ${
 										selectedDate === date.value
-											? "border-primary bg-primary/10"
-											: "border-white/10 bg-white/5 hover:border-primary hover:bg-white/10"
+											? "border-emerald-300/90 bg-emerald-300/90/10"
+											: "border-white/10 bg-white/5 hover:border-emerald-300/90 hover:bg-white/10"
 									}`}
 								>
 									<p className="font-semibold text-sm text-white">
 										{date.displayText}
 									</p>
-									<p className="text-white/60 text-xs">{date.dayOfWeek}</p>
 								</button>
 							))}
 						</div>
@@ -183,7 +194,7 @@ export function MovieSelectionStep({
 			{showFlexibilitySettings && (
 				<div className="zoom-in-95 animate-in rounded-xl border border-white/10 bg-white/5 p-6 duration-200">
 					<h3 className="mb-4 flex items-center gap-2 font-medium text-lg text-white">
-						<Clock className="h-5 w-5 text-primary" />
+						<Clock className="h-5 w-5 text-emerald-300/90" />
 						Configurações de Flexibilidade
 					</h3>
 
@@ -279,8 +290,8 @@ export function MovieSelectionStep({
 			) : isScraping ? (
 				<div className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 p-16 text-center">
 					<div className="relative mb-6">
-						<div className="absolute inset-0 animate-ping rounded-full bg-primary/20 opacity-75" />
-						<div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+						<div className="absolute inset-0 animate-ping rounded-full bg-emerald-300/90/20 opacity-75" />
+						<div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-300/90/10 text-primary">
 							<LoaderCircleIcon className="h-8 w-8 animate-spin" />
 						</div>
 					</div>
@@ -314,7 +325,7 @@ export function MovieSelectionStep({
 								onClick={() => onToggleMovie(movie.id)}
 								className={`group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all duration-300 ${
 									isSelected
-										? "scale-[1.02] border-primary bg-white/5 shadow-primary/10 shadow-xl"
+										? "scale-[1.02] border-emerald-300/90 bg-white/5 shadow-emerald-300/90/10 shadow-xl"
 										: "hover:-translate-y-1 border-transparent bg-white/5 hover:border-white/20 hover:bg-white/10"
 								}`}
 							>
@@ -341,7 +352,7 @@ export function MovieSelectionStep({
 									<div
 										className={`absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full transition-all ${
 											isSelected
-												? "scale-100 bg-primary text-primary-foreground opacity-100"
+												? "scale-100 bg-emerald-300/90 text-primary opacity-100"
 												: "scale-90 bg-black/50 text-white/50 opacity-0 group-hover:opacity-100"
 										}`}
 									>
@@ -376,7 +387,7 @@ export function MovieSelectionStep({
 												key={session.id}
 												className={`rounded px-1.5 py-0.5 font-medium text-[10px] ${
 													isSelected
-														? "bg-primary/20 text-primary-foreground"
+														? "bg-emerald-300/90 text-primary"
 														: "bg-white/10 text-white/70"
 												}`}
 											>

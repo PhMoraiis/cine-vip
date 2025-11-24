@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, MapPin } from "lucide-react";
+import { ChevronLeft, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Schedule {
@@ -38,8 +38,13 @@ export function ScheduleSelectionStep({
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center gap-4">
-				<Button variant="outline" onClick={onBack} className="text-white">
-					<ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onBack}
+					className="h-10 w-10 shrink-0 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+				>
+					<ChevronLeft className="h-5 w-5" />
 				</Button>
 				<div>
 					<h2 className="font-semibold text-white text-xl">
@@ -55,7 +60,11 @@ export function ScheduleSelectionStep({
 				{schedules.map((schedule, index) => (
 					<div
 						key={schedule.id}
-						className="flex flex-col justify-between rounded-lg border border-white/10 bg-white/5 p-6 transition-all hover:border-blue-500 hover:bg-white/10"
+						className={`flex flex-col justify-between rounded-lg border border-white/10 bg-white/5 p-6 transition-all hover:bg-white/10 ${
+							schedule.feasible
+								? "hover:border-emerald-300/90"
+								: "hover:border-red-400/80"
+						}`}
 					>
 						<div className="space-y-4">
 							<div className="flex items-start justify-between">
@@ -73,11 +82,11 @@ export function ScheduleSelectionStep({
 									</div>
 								</div>
 								{schedule.feasible ? (
-									<div className="rounded-full bg-green-500/20 px-3 py-1 font-medium text-green-400 text-xs">
+									<div className="rounded-full bg-emerald-300/90 px-3 py-1 font-medium text-primary text-xs">
 										✓ Viável
 									</div>
 								) : (
-									<div className="rounded-full bg-red-500/20 px-3 py-1 font-medium text-red-400 text-xs">
+									<div className="rounded-full bg-red-400/80 px-3 py-1 font-medium text-primary-foreground text-xs">
 										✗ Inviável
 									</div>
 								)}
@@ -92,7 +101,7 @@ export function ScheduleSelectionStep({
 											key={`${schedule.id}-${conflict.substring(0, 20)}`}
 											className={`text-xs ${
 												conflict.startsWith("✅")
-													? "text-green-400/80"
+													? "text-emerald-300/90"
 													: conflict.startsWith("❌")
 														? "text-red-400/80"
 														: "text-white/60"
@@ -143,7 +152,7 @@ export function ScheduleSelectionStep({
 							disabled={!schedule.feasible}
 							className={`mt-6 w-full ${
 								schedule.feasible
-									? "bg-white/10 text-white hover:bg-blue-600"
+									? "cursor-pointer bg-white/10 text-white shadow-xl hover:bg-emerald-300/90 hover:text-primary"
 									: "cursor-not-allowed bg-white/5 text-white/40"
 							}`}
 						>

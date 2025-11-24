@@ -135,9 +135,9 @@ const StepperIndicator = React.forwardRef<
 				// Inactive
 				"border-muted text-muted-foreground group-data-[state=inactive]:bg-background",
 				// Active
-				"group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground",
+				"group-data-[state=active]:border-emerald-300/90 group-data-[state=active]:bg-emerald-300/90 group-data-[state=active]:text-primary",
 				// Completed
-				"group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground",
+				"group-data-[state=completed]:border-emerald-300/90 group-data-[state=completed]:bg-emerald-300/90 group-data-[state=completed]:text-primary",
 				className,
 			)}
 			{...props}
@@ -184,7 +184,7 @@ const StepperSeparator = React.forwardRef<
 		<div
 			ref={ref}
 			className={cn(
-				"h-[2px] min-w-[2rem] flex-1 bg-muted transition-colors group-data-[state=completed]:bg-primary",
+				"h-[2px] min-w-[2rem] flex-1 bg-muted transition-colors group-data-[state=completed]:bg-emerald-300/90",
 				className,
 			)}
 			{...props}

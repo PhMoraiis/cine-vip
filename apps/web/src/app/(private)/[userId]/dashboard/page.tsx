@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Clock, Hourglass, MapPin, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -161,7 +161,7 @@ export default function DashboardPage() {
 						Meus Cronogramas
 					</h1>
 					<Link href={`/${session.user.id}/create-schedule`}>
-						<Button className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-105 hover:bg-primary/90">
+						<Button className="bg-emerald-300/90 text-primary shadow-emerald-300/20 shadow-lg transition-all hover:scale-105 hover:bg-emerald-300/90">
 							<Plus className="mr-2 h-4 w-4" />
 							Novo Cronograma
 						</Button>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
 				) : schedules.length === 0 ? (
 					<div className="fade-in zoom-in-95 flex animate-in flex-col items-center justify-center rounded-3xl border border-white/10 border-dashed bg-white/5 p-12 text-center duration-500">
 						<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-							<Calendar className="h-10 w-10 text-primary" />
+							<Calendar className="h-10 w-10 text-emerald-300/90" />
 						</div>
 						<h3 className="mb-2 font-semibold text-white text-xl">
 							Nenhum cronograma encontrado
@@ -190,7 +190,7 @@ export default function DashboardPage() {
 						<Link href={`/${session.user.id}/create-schedule`}>
 							<Button
 								size="lg"
-								className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+								className="bg-emerald-300/90 text-primary shadow-lg shadow-primary/20 hover:bg-emerald-500/90"
 							>
 								Criar meu primeiro cronograma
 							</Button>
@@ -205,20 +205,30 @@ export default function DashboardPage() {
 								className="group rounded-xl border border-white/10 bg-white/5 p-6 transition-all hover:border-white/20 hover:bg-white/10"
 							>
 								<div className="mb-4 flex items-start justify-between">
-									<h3 className="font-semibold text-white group-hover:text-blue-400">
+									<h3 className="font-semibold text-white group-hover:text-emerald-300/90">
 										{schedule.name}
 									</h3>
-									<span className="rounded-full bg-blue-600/20 px-4 py-1 font-medium text-blue-400 text-xs">
+									<span className="rounded-full bg-emerald-300/20 px-4 py-1 font-medium text-emerald-300/90 text-xs">
 										{schedule.items?.length || 0} filmes
 									</span>
 								</div>
 								<div className="space-y-2 text-sm text-white/60">
-									<p>📍 {schedule.cinemaCode}</p>
-									<p>📅 {formatDate(schedule.date)}</p>
-									<p>
-										⏱️ {schedule.startTime} - {schedule.endTime}
+									<p className="flex items-center">
+										<MapPin className="mr-2 h-4 w-4 text-emerald-300/90" />{" "}
+										{schedule.cinemaCode}
 									</p>
-									<p>⏳ {formatDuration(schedule.totalDuration)}</p>
+									<p className="flex items-center">
+										<Calendar className="mr-2 h-4 w-4 text-emerald-300/90" />{" "}
+										{formatDate(schedule.date)}
+									</p>
+									<p className="flex items-center">
+										<Clock className="mr-2 h-4 w-4 text-emerald-300/90" />{" "}
+										{schedule.startTime} - {schedule.endTime}
+									</p>
+									<p className="flex items-center">
+										<Hourglass className="mr-2 h-4 w-4 text-emerald-300/90" />{" "}
+										{formatDuration(schedule.totalDuration)}
+									</p>
 								</div>
 							</a>
 						))}

@@ -16,7 +16,6 @@ import { datesRoutes } from "@/routes/dates";
 import { scheduleRoutes } from "@/routes/schedules";
 import { sessionsRoutes } from "@/routes/sessions";
 import { CronService } from "@/services/cron.service";
-import { StartupService } from "@/services/startup.service";
 
 // Validator and Serializer Compilers ZOD
 const app = Fastify().withTypeProvider<ZodTypeProvider>();
@@ -93,15 +92,6 @@ async function start() {
 		const cronService = CronService.getInstance();
 		cronService.initializeJobs();
 		console.log("Sistema de Cron Jobs inicializado com sucesso!");
-
-		// Inicializar Scraping Inicial em Background (Fire and Forget)
-		console.log(
-			"🔄 Iniciando scraping em background (não bloqueia o servidor)...",
-		);
-		const startupService = StartupService.getInstance();
-		startupService.performInitialScraping().catch((err) => {
-			console.error("❌ Erro no scraping inicial em background:", err);
-		});
 	} catch (err) {
 		app.log.error(err);
 		process.exit(1);

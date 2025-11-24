@@ -1,3 +1,11 @@
+import {
+	Stepper,
+	StepperIndicator,
+	StepperItem,
+	StepperSeparator,
+	StepperTrigger,
+} from "@/components/ui/stepper";
+
 type Step = "cinema" | "movies" | "schedules" | "name";
 
 interface StepsIndicatorProps {
@@ -6,25 +14,22 @@ interface StepsIndicatorProps {
 
 export function StepsIndicator({ currentStep }: StepsIndicatorProps) {
 	const steps: Step[] = ["cinema", "movies", "schedules", "name"];
+	const currentStepIndex = steps.indexOf(currentStep) + 1;
 
 	return (
-		<div className="mb-8 flex items-center gap-4">
-			{steps.map((s, index) => (
-				<div key={s} className="flex items-center gap-2">
-					<div
-						className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm ${
-							currentStep === s
-								? "bg-blue-600 text-white"
-								: index < steps.indexOf(currentStep)
-									? "bg-green-600 text-white"
-									: "bg-white/10 text-white/40"
-						}`}
-					>
-						{index + 1}
-					</div>
-					{index < 3 && <div className="h-px w-12 bg-white/10" />}
-				</div>
-			))}
+		<div className="mb-8 w-full">
+			<Stepper value={currentStepIndex} className="justify-start gap-2">
+				{steps.map((step, index) => (
+					<StepperItem key={step} step={index + 1} className="flex-none">
+						<StepperTrigger className="cursor-default">
+							<StepperIndicator className="h-10 w-10 text-sm" />
+						</StepperTrigger>
+						{index < steps.length - 1 && (
+							<StepperSeparator className="w-12 flex-none" />
+						)}
+					</StepperItem>
+				))}
+			</Stepper>
 		</div>
 	);
 }

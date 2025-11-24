@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 
@@ -79,21 +80,43 @@ export default function ScheduleDetailsPage() {
 		}
 	}, [session, isPending, router]);
 
-	const handleDelete = async () => {
-		if (!confirm("Tem certeza que deseja excluir este cronograma?")) return;
+	const handleDelete = () => {
+		toast("Tem certeza que deseja excluir este cronograma?", {
+			position: "top-center",
+			actionButtonStyle: {
+				backgroundColor: "red",
+				color: "white",
+			},
+			action: {
+				label: "Excluir",
+				onClick: async () => {
+					try {
+						const response = await fetch(
+							`${process.env.NEXT_PUBLIC_SERVER_URL}/api/schedules/${userId}/${scheduleId}`,
+							{ method: "DELETE" },
+						);
 
-		try {
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/schedules/${userId}/${scheduleId}`,
-				{ method: "DELETE" },
-			);
-
-			if (response.ok) {
-				router.push(`/${userId}/dashboard`);
-			}
-		} catch (error) {
-			console.error("Error deleting schedule:", error);
-		}
+						if (response.ok) {
+							toast.success("Cronograma excluído com sucesso!");
+							router.push(`/${userId}/dashboard`);
+						} else {
+							toast.error("Erro ao excluir cronograma.");
+						}
+					} catch (error) {
+						console.error("Error deleting schedule:", error);
+						toast.error("Erro ao excluir cronograma.");
+					}
+				},
+			},
+			cancelButtonStyle: {
+				backgroundColor: "gray",
+				color: "white",
+			},
+			cancel: {
+				label: "Cancelar",
+				onClick: () => {},
+			},
+		});
 	};
 
 	if (!session || isLoading) {
@@ -179,7 +202,7 @@ export default function ScheduleDetailsPage() {
 					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 						<div className="flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-								<MapPin className="h-6 w-6 text-primary" />
+								<MapPin className="h-6 w-6 text-emerald-300/90" />
 							</div>
 							<div>
 								<p className="text-white/40 text-xs uppercase tracking-wider">
@@ -191,7 +214,7 @@ export default function ScheduleDetailsPage() {
 
 						<div className="flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-								<Calendar className="h-6 w-6 text-primary" />
+								<Calendar className="h-6 w-6 text-emerald-300/90" />
 							</div>
 							<div>
 								<p className="text-white/40 text-xs uppercase tracking-wider">
@@ -205,7 +228,7 @@ export default function ScheduleDetailsPage() {
 
 						<div className="flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-								<Clock className="h-6 w-6 text-primary" />
+								<Clock className="h-6 w-6 text-emerald-300/90" />
 							</div>
 							<div>
 								<p className="text-white/40 text-xs uppercase tracking-wider">
@@ -219,7 +242,7 @@ export default function ScheduleDetailsPage() {
 
 						<div className="flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-								<Film className="h-6 w-6 text-primary" />
+								<Film className="h-6 w-6 text-emerald-300/90" />
 							</div>
 							<div>
 								<p className="text-white/40 text-xs uppercase tracking-wider">
@@ -249,7 +272,7 @@ export default function ScheduleDetailsPage() {
 										className="group relative flex gap-6 rounded-xl border border-white/10 bg-white/5 p-6 transition-all hover:border-white/20 hover:bg-white/10"
 									>
 										{/* Order Badge */}
-										<div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 font-bold text-lg text-primary">
+										<div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 font-bold text-emerald-300/90 text-lg">
 											{index + 1}
 										</div>
 
@@ -317,10 +340,10 @@ export default function ScheduleDetailsPage() {
 
 												{item.travelTime > 0 && (
 													<div className="rounded-lg bg-primary/10 px-4 py-2">
-														<p className="mb-1 text-primary/60 text-xs uppercase tracking-wider">
+														<p className="mb-1 text-emerald-300/90 text-xs uppercase tracking-wider">
 															Intervalo
 														</p>
-														<p className="font-medium text-primary">
+														<p className="font-medium text-emerald-300/90">
 															{item.travelTime} min
 														</p>
 													</div>
