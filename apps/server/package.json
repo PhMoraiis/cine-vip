@@ -1,9 +1,9 @@
 {
   "name": "server",
-  "main": "src/index.ts",
+  "main": "src/http/index.ts",
   "type": "module",
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown src/http/index.ts",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "bun run --hot src/http/index.ts",
