@@ -95,14 +95,16 @@ export default function CreateSchedulePage() {
 	const { data: cinemasData, isLoading: cinemasLoading } = useQuery({
 		queryKey: ["cinemas"],
 		queryFn: async () => {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/cinemas`);
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/cinemas`,
+			);
 			if (!response.ok) throw new Error("Failed to fetch cinemas");
 			const data = await response.json();
 
 			// Se não houver cinemas, fazer scraping
 			if (!data.cinemas || data.cinemas.length === 0) {
 				const scrapeResponse = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/api/cinemas`,
+					`${process.env.NEXT_PUBLIC_SERVER_URL}/api/cinemas`,
 					{
 						method: "POST",
 					},
@@ -121,7 +123,7 @@ export default function CreateSchedulePage() {
 	const scrapeDates = useMutation({
 		mutationFn: async (cinemaCode: string) => {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/date/${cinemaCode}`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/date/${cinemaCode}`,
 				{
 					method: "POST",
 				},
@@ -155,7 +157,7 @@ export default function CreateSchedulePage() {
 	const fetchAvailableDates = useMutation({
 		mutationFn: async (cinemaCode: string) => {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/dates/${cinemaCode}`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/dates/${cinemaCode}`,
 				{
 					method: "GET",
 				},
@@ -207,7 +209,7 @@ export default function CreateSchedulePage() {
 			date: string;
 		}) => {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/sessions/${cinemaCode}/${date}`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sessions/${cinemaCode}/${date}`,
 				{
 					method: "POST",
 				},
@@ -223,7 +225,7 @@ export default function CreateSchedulePage() {
 		queryFn: async () => {
 			if (!selectedCinema || !selectedDate) return null;
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/sessions/${selectedCinema.code}/${selectedDate}`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sessions/${selectedCinema.code}/${selectedDate}`,
 				{
 					method: "GET",
 				},
@@ -286,7 +288,7 @@ export default function CreateSchedulePage() {
 			});
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/schedules/generate`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/schedules/generate`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -334,16 +336,17 @@ export default function CreateSchedulePage() {
 			if (!session?.user?.id) throw new Error("User not authenticated");
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/schedules/save`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/schedules/save`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						userId: session.user.id,
 						name,
-					scheduleId,
-				}),
-			});
+						scheduleId,
+					}),
+				},
+			);
 
 			if (!response.ok) throw new Error("Failed to save schedule");
 			return response.json();
