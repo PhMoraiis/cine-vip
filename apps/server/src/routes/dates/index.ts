@@ -44,7 +44,7 @@ export async function datesRoutes(app: FastifyInstance) {
 	app.post<{
 		Params: { cinemaCode: string };
 	}>(
-		"/api/date/:cinemaCode",
+		"/api/dates/:cinemaCode",
 		{
 			schema: {
 				description: "Atualiza as datas disponíveis de um cinema via scraping",

@@ -123,7 +123,7 @@ export default function CreateSchedulePage() {
 	const scrapeDates = useMutation({
 		mutationFn: async (cinemaCode: string) => {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/date/${cinemaCode}`,
+				`${process.env.NEXT_PUBLIC_SERVER_URL}/api/dates/${cinemaCode}`,
 				{
 					method: "POST",
 				},
