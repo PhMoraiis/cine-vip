@@ -166,7 +166,7 @@ export default function Home() {
 						) : (
 							<>
 								<Button
-									className="hidden cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
+									className="cursor-pointer rounded-md bg-transparent px-3.5 py-2 font-normal text-[14px] text-white/80 ring-1 ring-white/10 transition-all hover:bg-transparent hover:ring-white/20 md:block"
 									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 									onClick={() => {
 										router.push("/auth");
@@ -174,12 +174,12 @@ export default function Home() {
 								>
 									Entrar
 								</Button>
-								<Button
+								{/* <Button
 									className="cursor-pointer rounded-md bg-white/10 px-3.5 py-2 font-normal text-[14px] text-white shadow-md ring-1 ring-white/15 transition-all hover:bg-white/20 hover:shadow-lg hover:ring-white/25 active:scale-[0.99]"
 									style={{ fontFamily: '"Manrope", ui-sans-serif, system-ui' }}
 								>
 									Download App
-								</Button>
+								</Button> */}
 							</>
 						)}
 					</div>
