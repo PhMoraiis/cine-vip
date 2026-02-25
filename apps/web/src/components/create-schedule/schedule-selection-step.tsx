@@ -117,7 +117,7 @@ export function ScheduleSelectionStep({
 								{schedule.items
 									.sort((a, b) => a.order - b.order)
 									.map((item, i) => (
-										<div key={item.sessionId} className="relative pl-6">
+										<div key={item.sessionId} className="relative pl-8 pt-1.5">
 											{/* Linha do tempo */}
 											{i < schedule.items.length - 1 && (
 												<div className="absolute top-6 left-[11px] h-full w-px bg-white/10" />
@@ -138,7 +138,7 @@ export function ScheduleSelectionStep({
 												{item.travelTime > 0 && (
 													<div className="flex items-center gap-1 py-1 text-blue-400 text-xs">
 														<MapPin className="h-3 w-3" />
-														<span>{item.travelTime} min intervalo</span>
+														{item.travelTime}min de deslocamento
 													</div>
 												)}
 											</div>

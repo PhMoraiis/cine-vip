@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
-import { chromium } from "playwright";
+import { browserPool } from "@/lib/browser-pool";
 
 export interface CinemaOption {
 	code: string;
@@ -21,11 +21,7 @@ export class CinemaScraper {
 	async getAvailableCinemas(): Promise<CinemasResponse> {
 		console.log("🏛️ Iniciando scraping de cinemas disponíveis...");
 
-		const browser = await chromium.launch({
-			headless: true,
-			slowMo: 50,
-		});
-
+		const browser = await browserPool.getBrowser();
 		const context = await browser.newContext({
 			viewport: { width: 1280, height: 720 },
 		});
@@ -41,7 +37,7 @@ export class CinemaScraper {
 			});
 
 			// Aguardar a página carregar completamente
-			await page.waitForTimeout(3000);
+			await page.waitForTimeout(2000);
 
 			// Passo 2: Aguardar o seletor #cinema aparecer
 			console.log("Aguardando seletor #cinema...");
@@ -136,11 +132,11 @@ export class CinemaScraper {
 			);
 
 			// Log detalhado dos cinemas por estado
-			Object.entries(cinemasData.cinemasByState).forEach(([state, cinemas]) => {
-				console.log(`   ${state}: ${cinemas.length} cinemas`);
-			});
+			for (const [state, cinemas] of Object.entries(cinemasData.cinemasByState)) {
+				console.log(`   ${state}: ${(cinemas as CinemaOption[]).length} cinemas`);
+			}
 
-			await browser.close();
+			await context.close();
 
 			return {
 				success: true,
@@ -151,7 +147,7 @@ export class CinemaScraper {
 		} catch (error) {
 			console.error("Erro durante scraping de cinemas:", error);
 
-			await browser.close();
+			await context.close();
 
 			return {
 				success: false,

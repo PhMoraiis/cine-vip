@@ -287,7 +287,7 @@ export function MovieSelectionStep({
 						/>
 					))}
 				</div>
-			) : isScraping ? (
+			) : isScraping || (movies.length === 0 && !isLoading) ? (
 				<div className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 p-16 text-center">
 					<div className="relative mb-6">
 						<div className="absolute inset-0 animate-ping rounded-full bg-emerald-300/90/20 opacity-75" />

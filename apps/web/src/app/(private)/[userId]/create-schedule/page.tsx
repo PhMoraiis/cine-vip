@@ -214,9 +214,15 @@ export default function CreateSchedulePage() {
 					method: "POST",
 				},
 			);
-			if (!response.ok && response.status !== 202)
-				throw new Error("Failed to scrape sessions");
+			if (!response.ok) throw new Error("Failed to trigger scraping");
 			return response.json();
+		},
+		onSuccess: () => {
+			console.log("Scraping job triggered successfully");
+		},
+		onError: (error) => {
+			console.error("Error triggering scraping:", error);
+			toast.error("Erro ao atualizar filmes e sessões.");
 		},
 	});
 
@@ -231,43 +237,24 @@ export default function CreateSchedulePage() {
 				},
 			);
 
-			// Se não houver dados (404 ou vazio), fazer scraping
 			if (!response.ok) {
-				const scrapeResponse = await scrapeSessions.mutateAsync({
-					cinemaCode: selectedCinema.code,
-					date: selectedDate,
-				});
-				return scrapeResponse;
+				throw new Error("Failed to fetch movies");
 			}
 
 			const data = await response.json();
-
-			// Se estiver fazendo scraping, retornar dados para polling
-			if (
-				data.scrapingJob &&
-				(data.scrapingJob.status === "PENDING" ||
-					data.scrapingJob.status === "RUNNING")
-			) {
-				return data;
-			}
-
-			// Se retornar mas não houver filmes e não estiver fazendo scraping, fazer scraping
-			if ((!data.movies || data.movies.length === 0) && !data.scrapingJob) {
-				const scrapeResponse = await scrapeSessions.mutateAsync({
-					cinemaCode: selectedCinema.code,
-					date: selectedDate,
-				});
-				return scrapeResponse;
-			}
-
 			return data;
 		},
 		enabled: !!selectedCinema && !!selectedDate && step === "movies",
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		refetchOnWindowFocus: false,
 		refetchInterval: (query) => {
 			const data = query.state.data;
-			const status = data?.scrapingJob?.status || data?.job?.status;
-			if (status === "PENDING" || status === "RUNNING") {
-				return 5000;
+			const job = data?.scrapingJob;
+			if (
+				job &&
+				(job.status === "PENDING" || job.status === "RUNNING")
+			) {
+				return 3000;
 			}
 			return false;
 		},
@@ -459,6 +446,15 @@ export default function CreateSchedulePage() {
 		generateSchedules.data?.schedules ||
 		[];
 
+	const moviesById = new Map(movies.map((movie) => [movie.id, movie]));
+	const schedulesWithMovies: Schedule[] = schedules.map((schedule) => ({
+		...schedule,
+		items: schedule.items.map((item) => ({
+			...item,
+			movie: moviesById.get(item.movieId),
+		})),
+	}));
+
 	return (
 		<div className="min-h-screen bg-background">
 			{/* Header */}
@@ -566,7 +562,7 @@ export default function CreateSchedulePage() {
 				{/* Step: Selecionar Cronograma */}
 				{step === "schedules" && (
 					<ScheduleSelectionStep
-						schedules={schedules}
+						schedules={schedulesWithMovies}
 						onSelect={handleSelectSchedule}
 						onBack={() => setStep("movies")}
 					/>

@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
 
 import { init } from "@paralleldrive/cuid2";
-import { chromium } from "playwright";
+import { browserPool } from "@/lib/browser-pool";
 
 export interface DetailedMovieData {
 	id: string;
@@ -42,11 +42,7 @@ export class MoviesScraper {
 			`Iniciando scraping - Cinema: ${cinemaCode}, Data: ${targetDate || "hoje"}`,
 		);
 
-		const browser = await chromium.launch({
-			headless: true,
-			slowMo: 50,
-		});
-
+		const browser = await browserPool.getBrowser();
 		const context = await browser.newContext({
 			viewport: { width: 1280, height: 720 },
 		});
@@ -67,9 +63,9 @@ export class MoviesScraper {
 
 			// Aceitar cookies
 			try {
-				await page.click('button:has-text("Continuar")', { timeout: 5000 });
+				await page.click('button:has-text("Continuar")', { timeout: 3000 });
 				console.log("Cookies aceitos");
-				await page.waitForTimeout(2000);
+				await page.waitForTimeout(1000);
 			} catch {
 				console.log("Sem cookies para aceitar");
 			}
@@ -88,7 +84,7 @@ export class MoviesScraper {
 			console.log("Aguardando dados dos filmes...");
 
 			// Aguardar um pouco mais para garantir que os dados foram populados
-			await page.waitForTimeout(5000);
+			await page.waitForTimeout(3000);
 
 			// Extrair dados usando JavaScript no contexto da página
 			const moviesData = await page.evaluate(() => {
@@ -430,7 +426,7 @@ export class MoviesScraper {
 		} catch (error) {
 			console.error("Erro durante scraping avançado:", error);
 		} finally {
-			await browser.close();
+			await context.close();
 		}
 
 		console.log(`Scraping concluído: ${movies.length} filmes encontrados`);

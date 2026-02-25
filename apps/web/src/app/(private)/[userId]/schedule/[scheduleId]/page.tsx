@@ -337,17 +337,6 @@ export default function ScheduleDetailsPage() {
 														{item.endTime}
 													</p>
 												</div>
-
-												{item.travelTime > 0 && (
-													<div className="rounded-lg bg-primary/10 px-4 py-2">
-														<p className="mb-1 text-emerald-300/90 text-xs uppercase tracking-wider">
-															Intervalo
-														</p>
-														<p className="font-medium text-emerald-300/90">
-															{item.travelTime} min
-														</p>
-													</div>
-												)}
 											</div>
 										</div>
 									</div>

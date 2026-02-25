@@ -1,30 +1,254 @@
+import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import Prisma from "@/db";
+import Prisma, { JobStatus } from "@/db";
 import { DateScraper } from "@/scrapers/cineflix-dates";
 import { MoviesScraper } from "@/scrapers/cineflix-sessions";
 
+const SCRAPING_STALE_MINUTES = Number(
+	process.env.SCRAPING_STALE_MINUTES ?? 30,
+);
+
+const normalizeTitle = (title: string) =>
+	title
+		.normalize("NFKD")
+		.replace(/\p{Diacritic}/gu, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.trim()
+		.replace(/\s+/g, " ");
+
+const buildExternalId = (cinemaCode: string, date: string, title: string) =>
+	createHash("sha1")
+		.update(`${cinemaCode}|${date}|${normalizeTitle(title)}`)
+		.digest("hex");
+
+const isJobStale = (job: { completedAt?: Date | null } | null) => {
+	if (!job?.completedAt) return true;
+	const ageMs = Date.now() - job.completedAt.getTime();
+	return ageMs > SCRAPING_STALE_MINUTES * 60 * 1000;
+};
+
+const toScrapingJobPayload = (job: {
+	id: string;
+	status: JobStatus;
+	startedAt: Date | null;
+	completedAt: Date | null;
+	error: string | null;
+	moviesFound: number;
+}) => ({
+	id: job.id,
+	status: job.status,
+	startedAt: job.startedAt,
+	completedAt: job.completedAt,
+	error: job.error,
+	moviesFound: job.moviesFound,
+});
+
+const startScrapingJob = async (
+	cinemaCode: string,
+	date: string,
+	force = false,
+) => {
+	const existingJob = await Prisma.scrapingJob.findUnique({
+		where: { cinemaCode_date: { cinemaCode, date } },
+	});
+
+	if (!force && existingJob) {
+		if (
+			existingJob.status === JobStatus.RUNNING ||
+			existingJob.status === JobStatus.PENDING
+		) {
+			return existingJob;
+		}
+	}
+
+	const job = await Prisma.scrapingJob.upsert({
+		where: { cinemaCode_date: { cinemaCode, date } },
+		update: {
+			status: JobStatus.PENDING,
+			error: null,
+			updatedAt: new Date(),
+		},
+		create: {
+			cinemaCode,
+			date,
+			status: JobStatus.PENDING,
+		},
+	});
+
+	setTimeout(() => {
+		void runScrapingJob(job.id, cinemaCode, date);
+	}, 0);
+
+	return job;
+};
+
+const runScrapingJob = async (
+	jobId: string,
+	cinemaCode: string,
+	date: string,
+) => {
+	try {
+		await Prisma.scrapingJob.update({
+			where: { id: jobId },
+			data: {
+				status: JobStatus.RUNNING,
+				startedAt: new Date(),
+				error: null,
+			},
+		});
+
+		const cinema = await Prisma.cinema.findUnique({
+			where: { code: cinemaCode },
+			select: { id: true, code: true, name: true },
+		});
+
+		if (!cinema) {
+			await Prisma.scrapingJob.update({
+				where: { id: jobId },
+				data: {
+					status: JobStatus.FAILED,
+					error: "Cinema nao encontrado",
+					completedAt: new Date(),
+				},
+			});
+			return;
+		}
+
+		const dateScraper = new DateScraper();
+		try {
+			const datesResult = await dateScraper.getAvailableDates(cinemaCode);
+			if (datesResult.success) {
+				for (const dateOption of datesResult.availableDates) {
+					await Prisma.availableDate.upsert({
+						where: {
+							cinemaCode_value: {
+								cinemaCode,
+								value: dateOption.value,
+							},
+						},
+						update: {
+							displayText: dateOption.displayText,
+							dayOfWeek: dateOption.dayOfWeek,
+							dayNumber: dateOption.dayNumber,
+							updatedAt: new Date(),
+						},
+						create: {
+							cinemaCode,
+							value: dateOption.value,
+							displayText: dateOption.displayText,
+							dayOfWeek: dateOption.dayOfWeek,
+							dayNumber: dateOption.dayNumber,
+						},
+					});
+				}
+			}
+		} catch (dateError) {
+			console.error(
+				`Erro no scraping de datas para ${cinemaCode}:`,
+				dateError,
+			);
+		}
+
+		const moviesScraper = new MoviesScraper();
+		const moviesResult = await moviesScraper.getMoviesSessions(
+			cinemaCode,
+			date,
+		);
+
+		let moviesFound = 0;
+		for (const movieData of moviesResult) {
+			if (!movieData.title) continue;
+
+			const externalId = buildExternalId(
+				cinemaCode,
+				date,
+				movieData.title,
+			);
+
+			const movie = await Prisma.movie.upsert({
+				where: {
+					externalId_cinemaId_date: {
+						externalId,
+						cinemaId: cinema.id,
+						date,
+					},
+				},
+				update: {
+					title: movieData.title,
+					genre: movieData.genre,
+					duration: movieData.duration,
+					rating: movieData.rating,
+					synopsis: movieData.synopsis,
+					posterUrl: movieData.posterUrl,
+				},
+				create: {
+					externalId,
+					cinemaId: cinema.id,
+					date,
+					title: movieData.title,
+					genre: movieData.genre,
+					duration: movieData.duration,
+					rating: movieData.rating,
+					synopsis: movieData.synopsis,
+					posterUrl: movieData.posterUrl,
+				},
+			});
+
+			const timeSlots = movieData.sessions
+				.flatMap((session) => session.times || [])
+				.filter((slot) => slot?.time)
+				.map((slot) => ({
+					movieId: movie.id,
+					time: slot.time,
+					sessionType: slot.sessionType || null,
+				}));
+
+			if (timeSlots.length > 0) {
+				await Prisma.movieSession.deleteMany({
+					where: { movieId: movie.id },
+				});
+				await Prisma.movieSession.createMany({
+					data: timeSlots,
+				});
+			}
+
+			moviesFound += 1;
+		}
+
+		await Prisma.scrapingJob.update({
+			where: { id: jobId },
+			data: {
+				status: JobStatus.COMPLETED,
+				completedAt: new Date(),
+				moviesFound,
+			},
+		});
+	} catch (error) {
+		console.error("Erro durante scraping em background:", error);
+		await Prisma.scrapingJob.update({
+			where: { id: jobId },
+			data: {
+				status: JobStatus.FAILED,
+				error: error instanceof Error ? error.message : String(error),
+				completedAt: new Date(),
+			},
+		});
+	}
+};
+
 export async function sessionsRoutes(app: FastifyInstance) {
-	// Rota para buscar filmes e sessões no banco de dados
+	// Rota para buscar filmes e sessões no banco de dados (cached-data-first)
 	app.get<{
 		Params: { cinemaCode: string; date?: string };
 	}>(
 		"/api/sessions/:cinemaCode/:date?",
-		{
-			schema: {
-				description:
-					"Buscar filmes e sessões de um cinema em uma data específica do banco de dados",
-				tags: ["Sessões"],
-				summary: "GET Movies",
-			},
-		},
+		{},
 		async (request, reply) => {
 			try {
 				const { cinemaCode, date } = request.params;
-
-				// Se data não for fornecida, usa a data atual
 				const targetDate = date || new Date().toISOString().split("T")[0];
 
-				// Buscar cinema com suas datas disponíveis
 				const cinema = await Prisma.cinema.findUnique({
 					where: { code: cinemaCode },
 					include: {
@@ -46,20 +270,6 @@ export async function sessionsRoutes(app: FastifyInstance) {
 					});
 				}
 
-				// Verificar se a data está disponível
-				const isDateAvailable = cinema.availableDates.some(
-					(d) => d.value === targetDate,
-				);
-
-				if (!isDateAvailable && cinema.availableDates.length > 0) {
-					return reply.status(400).send({
-						success: false,
-						error: "Data não disponível para este cinema",
-						availableDates: cinema.availableDates,
-					});
-				}
-
-				// Buscar filmes e sessões no banco de dados
 				const movies = await Prisma.movie.findMany({
 					where: {
 						cinemaId: cinema.id,
@@ -71,6 +281,16 @@ export async function sessionsRoutes(app: FastifyInstance) {
 					distinct: ["id"],
 					orderBy: { title: "asc" },
 				});
+
+				const job = await Prisma.scrapingJob.findUnique({
+					where: { cinemaCode_date: { cinemaCode, date: targetDate } },
+				});
+
+				const needsRefresh = isJobStale(job);
+
+				if (needsRefresh && (!job || job.status !== JobStatus.RUNNING)) {
+					void startScrapingJob(cinemaCode, targetDate, false);
+				}
 
 				return reply.send({
 					success: true,
@@ -85,7 +305,11 @@ export async function sessionsRoutes(app: FastifyInstance) {
 					movies,
 					totalMovies: movies.length,
 					hasMovies: movies.length > 0,
-					message: `Filmes e sessões carregados com sucesso para ${targetDate}`,
+					scrapingJob: job ? toScrapingJobPayload(job) : null,
+					refreshingInBackground: needsRefresh,
+					message: movies.length
+						? `${movies.length} filmes carregados do cache`
+						: "Nenhum filme em cache, atualizando agora",
 				});
 			} catch (error) {
 				console.error("❌ Erro ao buscar sessões no banco:", error);
@@ -97,40 +321,20 @@ export async function sessionsRoutes(app: FastifyInstance) {
 		},
 	);
 
-	// Selecionar cinema e data para ver filmes e sessões disponíveis e realiza o scraping dos filmes e sessões.
-	// A data é opcional, se não for fornecida, usa a data atual.
+	// Trigger scraping job manually (force refresh)
 	app.post<{
 		Params: { cinemaCode: string; date?: string };
 	}>(
 		"/api/sessions/:cinemaCode/:date?",
-		{
-			schema: {
-				description:
-					"Seleciona um cinema e uma data para ver os filmes e sessões disponíveis",
-				tags: ["Sessões"],
-				summary: "SCRAPING Movies",
-			},
-		},
+		{},
 		async (request, reply) => {
 			try {
 				const { cinemaCode, date } = request.params;
-
-				// Se data não for fornecida, usa a data atual
 				const targetDate = date || new Date().toISOString().split("T")[0];
 
-				// Buscar cinema com suas datas disponíveis
 				const cinema = await Prisma.cinema.findUnique({
 					where: { code: cinemaCode },
-					include: {
-						availableDates: {
-							select: {
-								value: true,
-								displayText: true,
-								dayOfWeek: true,
-							},
-							orderBy: { value: "asc" },
-						},
-					},
+					select: { id: true, code: true, name: true },
 				});
 
 				if (!cinema) {
@@ -140,196 +344,20 @@ export async function sessionsRoutes(app: FastifyInstance) {
 					});
 				}
 
-				// 🔄 SCRAPING DE DATAS SOB DEMANDA
-				console.log(
-					`Atualizando datas disponíveis para o cinema ${cinema.name}...`,
-				);
-				const dateScraper = new DateScraper();
+				const job = await startScrapingJob(cinemaCode, targetDate, true);
 
-				try {
-					const datesResult = await dateScraper.getAvailableDates(cinemaCode);
-
-					if (datesResult.success) {
-						// Atualizar/inserir datas disponíveis
-						for (const dateOption of datesResult.availableDates) {
-							await Prisma.availableDate.upsert({
-								where: {
-									cinemaCode_value: {
-										cinemaCode: cinema.code,
-										value: dateOption.value,
-									},
-								},
-								update: {
-									displayText: dateOption.displayText,
-									dayOfWeek: dateOption.dayOfWeek,
-									dayNumber: dateOption.dayNumber,
-									updatedAt: new Date(),
-								},
-								create: {
-									cinemaCode: cinema.code,
-									value: dateOption.value,
-									displayText: dateOption.displayText,
-									dayOfWeek: dateOption.dayOfWeek,
-									dayNumber: dateOption.dayNumber,
-								},
-							});
-						}
-
-						console.log(
-							`${datesResult.availableDates.length} datas atualizadas para ${cinema.name}`,
-						);
-					} else {
-						console.warn(
-							`Falha no scraping de datas para ${cinema.name}:`,
-							datesResult.error,
-						);
-					}
-				} catch (dateError) {
-					console.error(
-						`Erro no scraping de datas para ${cinema.name}:`,
-						dateError,
-					);
-					// Não interromper o fluxo por erro no scraping de datas
-				}
-
-				// Recarregar cinema com datas atualizadas
-				const updatedCinema = await Prisma.cinema.findUnique({
-					where: { code: cinemaCode },
-					include: {
-						availableDates: {
-							select: {
-								value: true,
-								displayText: true,
-								dayOfWeek: true,
-							},
-							orderBy: { value: "asc" },
-						},
-					},
-				});
-
-				// Verificar se a data está disponível (agora com dados atualizados)
-				const isDateAvailable = updatedCinema?.availableDates.some(
-					(d) => d.value === targetDate,
-				);
-
-				if (
-					!isDateAvailable &&
-					updatedCinema?.availableDates.length &&
-					updatedCinema.availableDates.length > 0
-				) {
-					return reply.status(400).send({
-						success: false,
-						error: "Data não disponível para este cinema",
-						availableDates: updatedCinema.availableDates,
-					});
-				}
-
-				// Realizar scraping dos filmes e sessões
-				const moviesScraper = new MoviesScraper();
-				const moviesResult = await moviesScraper.getMoviesSessions(
-					cinemaCode,
-					targetDate,
-				);
-
-				const processedMovies = [];
-
-				if (moviesResult && moviesResult.length > 0) {
-					// Processar cada filme com upsert
-					for (const movieData of moviesResult) {
-						try {
-							// Validar se o ID existe (deve sempre existir com CUID)
-							if (!movieData.id) {
-								console.error(`Filme sem ID: ${movieData.title}`);
-								continue;
-							}
-
-							// Upsert do filme
-							const movie = await Prisma.movie.upsert({
-								where: {
-									externalId_cinemaId_date: {
-										externalId: movieData.id,
-										cinemaId: cinema.id,
-										date: targetDate,
-									},
-								},
-								update: {
-									title: movieData.title,
-									genre: movieData.genre,
-									duration: movieData.duration,
-									rating: movieData.rating,
-									synopsis: movieData.synopsis,
-									posterUrl: movieData.posterUrl,
-								},
-								create: {
-									externalId: movieData.id,
-									cinemaId: cinema.id,
-									date: targetDate,
-									title: movieData.title,
-									genre: movieData.genre,
-									duration: movieData.duration,
-									rating: movieData.rating,
-									synopsis: movieData.synopsis,
-									posterUrl: movieData.posterUrl,
-								},
-							});
-
-							// Processar sessões do filme
-							const movieSessions = [];
-							if (movieData.sessions && movieData.sessions.length > 0) {
-								// Limpar sessões antigas para este filme
-								await Prisma.movieSession.deleteMany({
-									where: { movieId: movie.id },
-								});
-
-								// Processar cada sessão (cada sessão tem múltiplos horários)
-								for (const sessionData of movieData.sessions) {
-									// Criar uma sessão para cada horário
-									if (sessionData.times && sessionData.times.length > 0) {
-										for (const timeSlot of sessionData.times) {
-											const session = await Prisma.movieSession.create({
-												data: {
-													movieId: movie.id,
-													time: timeSlot.time,
-													sessionType: timeSlot.sessionType || null,
-												},
-											});
-											movieSessions.push(session);
-										}
-									}
-								}
-							}
-
-							processedMovies.push({
-								...movie,
-								sessions: movieSessions,
-							});
-						} catch (error) {
-							console.error(
-								`Erro ao processar filme ${movieData.title}:`,
-								error,
-							);
-						}
-					}
-				}
-
-				return reply.send({
+				return reply.status(202).send({
 					success: true,
+					message: "Scraping iniciado em background",
+					scrapingJob: toScrapingJobPayload(job),
 					cinema: {
-						id: cinema.id,
 						code: cinema.code,
 						name: cinema.name,
-						state: cinema.state,
-						optgroupLabel: cinema.optgroupLabel,
 					},
 					selectedDate: targetDate,
-					availableDates: cinema.availableDates,
-					movies: processedMovies,
-					totalMovies: processedMovies.length,
-					hasMovies: processedMovies.length > 0,
-					message: `Filmes e sessões carregados com sucesso para ${targetDate}`,
 				});
 			} catch (error) {
-				console.error("❌ Erro ao processar sessões:", error);
+				console.error("❌ Erro ao iniciar scraping:", error);
 				return reply.status(500).send({
 					success: false,
 					error: "Erro interno do servidor",

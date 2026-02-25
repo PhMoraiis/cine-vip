@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: ignore */
-import { chromium } from "playwright";
+import { browserPool } from "@/lib/browser-pool";
 
 export interface DateOption {
 	value: string;
@@ -25,12 +25,7 @@ export class DateScraper {
 	async getAvailableDates(cinemaCode = ""): Promise<DatesResponse> {
 		console.log(`📅 Iniciando scraping de datas para cinema: ${cinemaCode}...`);
 
-		const browser = await chromium.launch({
-			headless: true,
-			slowMo: 50,
-			timeout: 120000, // Timeout maior
-		});
-
+		const browser = await browserPool.getBrowser();
 		const context = await browser.newContext({
 			viewport: { width: 1280, height: 720 },
 		});
@@ -54,13 +49,13 @@ export class DateScraper {
 			});
 
 			// Aguardar a página carregar completamente e cookies
-			await page.waitForTimeout(2000);
+			await page.waitForTimeout(1500);
 
 			// Tentar aceitar cookies se aparecer
 			try {
-				await page.click('button:has-text("Continuar")', { timeout: 5000 });
+				await page.click('button:has-text("Continuar")', { timeout: 3000 });
 				console.log("✅ Cookies aceitos");
-				await page.waitForTimeout(1000);
+				await page.waitForTimeout(500);
 			} catch {
 				console.log("ℹ️ Sem cookies para aceitar ou já aceitos");
 			}
@@ -73,7 +68,7 @@ export class DateScraper {
 
 			for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 				try {
-					await page.waitForSelector("#data-desktop", { timeout: 20000 });
+					await page.waitForSelector("#data-desktop", { timeout: 15000 });
 					selectorFound = true;
 					break;
 				} catch {
@@ -83,7 +78,7 @@ export class DateScraper {
 
 					if (attempt < maxAttempts) {
 						// Apenas aguardar mais tempo sem recarregar
-						await page.waitForTimeout(5000);
+						await page.waitForTimeout(3000);
 					}
 				}
 			}
@@ -196,13 +191,6 @@ export class DateScraper {
 				await context.close();
 			} catch (closeError) {
 				console.warn("⚠️ Erro ao fechar context:", closeError);
-			}
-
-			// Browser será fechado pelo ResourceManager
-			try {
-				await browser.close();
-			} catch (closeError) {
-				console.warn("⚠️ Erro ao fechar browser:", closeError);
 			}
 		}
 	}
