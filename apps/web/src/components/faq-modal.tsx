@@ -22,7 +22,7 @@ interface FaqModalProps {
 export function FaqModal({ open, onOpenChange }: FaqModalProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto border-white/10 bg-[#0b0e13]">
+			<DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto border-white/10 bg-background">
 				<DialogHeader>
 					<DialogTitle className="font-bold text-2xl text-white">
 						Como Funciona o OnCine?
