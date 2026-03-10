@@ -47,11 +47,24 @@ bun dev
 Use the Expo Go app to run the mobile application.
 The API is running at [http://localhost:3000](http://localhost:3000).
 
+## 🐳 Docker & Deploy
 
+For production deployment with Docker (recommended for Dokploy):
 
+```bash
+# Build and test locally
+docker-compose up --build
 
+# Or individually
+docker build -f apps/server/Dockerfile -t cine-vip-server .
+docker build -f apps/web/Dockerfile -t cine-vip-web .
+```
 
+**Detailed deployment guide**: See [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)
 
+**Server-specific instructions**: See [apps/server/DEPLOY.md](./apps/server/DEPLOY.md)
+
+---
 
 ## Project Structure
 

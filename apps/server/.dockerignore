@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+*.log
+.turbo
+.next
+coverage
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode
+.idea
+playwright-report
+test-results

@@ -1,0 +1,74 @@
+services:
+  # PostgreSQL Database (opcional, se não tiver externo)
+  postgres:
+    image: postgres:16-alpine
+    container_name: cine-vip-db
+    environment:
+      POSTGRES_USER: cinevip
+      POSTGRES_PASSWORD: cinevip_dev
+      POSTGRES_DB: cinevip
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cinevip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: cine-vip-server
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://cinevip:cinevip_dev@postgres:5432/cinevip?schema=public
+      CORS_ORIGIN: http://localhost:3001
+      BETTER_AUTH_SECRET: dev-secret-change-in-production
+      BETTER_AUTH_URL: http://localhost:3000
+      NODE_ENV: development
+      PORT: 3000
+      API_VERSION: v1
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      PLAYWRIGHT_HEADLESS: "true"
+      PLAYWRIGHT_SLOW_MO: "0"
+      SCRAPING_STALE_MINUTES: "30"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Frontend Web
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: cine-vip-web
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+    depends_on:
+      - server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:
