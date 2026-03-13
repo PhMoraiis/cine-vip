@@ -1,5 +1,0 @@
-{
-  "start": {
-    "command": "node apps/server/dist/index.js"
-  }
-}
