@@ -1,6 +1,6 @@
 {
   "name": "server",
-  "main": "src/http/index.ts",
+  "main": "dist/index.js",
   "type": "module",
   "scripts": {
     "build": "prisma generate && tsdown src/http/index.ts",
