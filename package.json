@@ -9,7 +9,7 @@
   "scripts": {
     "check": "biome check --write .",
     "dev": "turbo dev",
-    "build": "turbo build turbo build --filter=server",
+    "build": "turbo build --filter=server",
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
