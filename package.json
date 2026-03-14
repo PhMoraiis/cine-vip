@@ -2,10 +2,6 @@
   "name": "cine-vip",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "check": "biome check --write .",
     "dev": "turbo dev",
@@ -19,10 +15,9 @@
     "db:generate": "turbo -F server db:generate",
     "db:migrate": "turbo -F server db:migrate"
   },
-  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
     "turbo": "^2.5.4"
   },
-  "packageManager": "bun@1.2.16"
+  "packageManager": "pnpm@10.32.1"
 }

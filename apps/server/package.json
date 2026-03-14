@@ -5,9 +5,9 @@
   "scripts": {
     "build": "prisma generate && tsdown src/http/index.ts",
     "check-types": "tsc -b",
-    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "bun run --hot src/http/index.ts",
-    "start": "bun run dist/index.js",
+    "compile": "pnpm build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+    "dev": "pnpm run --hot src/http/index.ts",
+    "start": "pnpm run dist/index.js",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
