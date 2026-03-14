@@ -1,13 +1,22 @@
 FROM node:24-bookworm
 WORKDIR /app
-RUN npm install -g pnpm@latest
-COPY . .
-RUN pnpm install
-RUN cd apps/server && pnpm dlx prisma generate
-RUN pnpm dlx turbo build --filter=server
 
-# Instala dependências de sistema e o browser pelo mesmo contexto do Bun
-RUN pnpm dlx playwright install-deps chromium
-RUN pnpm dlx playwright install chromium
+RUN npm install -g pnpm@latest
+
+COPY . .
+
+RUN pnpm install
+
+# Usa o prisma já instalado, sem baixar nada extra
+RUN cd apps/server && pnpm exec prisma generate
+
+RUN pnpm exec turbo build --filter=server
+
+# Playwright: instala deps de sistema e o browser via pnpm exec
+RUN pnpm exec playwright install-deps chromium
+RUN pnpm exec playwright install chromium
+
+# Limpa caches para reduzir tamanho da imagem final
+RUN pnpm store prune && npm cache clean --force
 
 CMD ["node", "apps/server/dist/index.js"]
