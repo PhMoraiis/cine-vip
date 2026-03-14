@@ -8,7 +8,6 @@
   ],
   "scripts": {
     "check": "biome check --write .",
-    "postinstall": "playwright install chromium --with-deps",
     "dev": "turbo dev",
     "start": "node apps/server/dist/index.js",
     "build": "turbo build --filter=server",

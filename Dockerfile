@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN bun install
+RUN bun install --ignore-scripts
 RUN bunx prisma generate
 RUN bunx turbo build --filter=server
 RUN bunx playwright install chromium --with-deps
