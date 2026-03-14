@@ -7,8 +7,8 @@ WORKDIR /app
 COPY . .
 
 RUN bun install --ignore-scripts
-RUN bunx prisma generate
+RUN cd apps/server && bunx prisma generate
 RUN bunx turbo build --filter=server
-RUN bunx playwright install chromium --with-deps
+RUN cd apps/server && bunx playwright install chromium --with-deps
 
 CMD ["node", "apps/server/dist/index.js"]
