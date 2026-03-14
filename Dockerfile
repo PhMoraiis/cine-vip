@@ -9,6 +9,6 @@ COPY . .
 RUN bun install --ignore-scripts
 RUN cd apps/server && bunx prisma generate
 RUN bunx turbo build --filter=server
-RUN cd apps/server && bunx playwright install chromium --with-deps
+RUN node /app/node_modules/.bun/playwright-core@1.55.1/node_modules/playwright-core/cli.js install chromium --with-deps
 
 CMD ["node", "apps/server/dist/index.js"]
