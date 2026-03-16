@@ -249,7 +249,13 @@ export default function CreateSchedulePage() {
 		refetchOnWindowFocus: false,
 		refetchInterval: (query) => {
 			const data = query.state.data;
-			const job = data?.scrapingJob;
+			const job = data?.scrapingJob || data?.job;
+			const refreshingInBackground = data?.refreshingInBackground;
+
+			if (refreshingInBackground) {
+				return 3000;
+			}
+
 			if (
 				job &&
 				(job.status === "PENDING" || job.status === "RUNNING")
@@ -365,8 +371,10 @@ export default function CreateSchedulePage() {
 
 	const handleSelectCinema = (cinema: Cinema) => {
 		setSelectedCinema(cinema);
+		setStep("movies");
 		setSelectedDate("");
 		setSelectedMovieIds([]);
+		setAvailableDates([]);
 		fetchAvailableDates.mutate(cinema.code);
 	};
 
@@ -499,7 +507,7 @@ export default function CreateSchedulePage() {
 					</div>
 				</div>
 				<div className="mx-auto max-w-7xl px-6 lg:px-8">
-					<div className="h-px w-full bg-gradient-to-r from-white/0 via-white/10 to-white/0" />
+					<div className="h-px w-full bg-linear-to-r from-white/0 via-white/10 to-white/0" />
 				</div>
 			</header>
 
@@ -530,7 +538,11 @@ export default function CreateSchedulePage() {
 				{step === "movies" && (
 					<MovieSelectionStep
 						movies={movies}
-						isLoading={moviesLoading}
+						isLoading={
+							moviesLoading ||
+							(!selectedDate &&
+								(fetchAvailableDates.isPending || scrapeDates.isPending))
+						}
 						selectedMovieIds={selectedMovieIds}
 						onToggleMovie={handleToggleMovie}
 						onGenerate={handleGenerateSchedules}
@@ -551,6 +563,7 @@ export default function CreateSchedulePage() {
 							fetchAvailableDates.isPending || scrapeDates.isPending
 						}
 						isScraping={
+							moviesData?.refreshingInBackground ||
 							moviesData?.scrapingJob?.status === "PENDING" ||
 							moviesData?.scrapingJob?.status === "RUNNING" ||
 							moviesData?.job?.status === "PENDING" ||

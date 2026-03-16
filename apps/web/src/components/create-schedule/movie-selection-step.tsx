@@ -125,10 +125,15 @@ export function MovieSelectionStep({
 					<Button
 						variant="outline"
 						onClick={() => setShowDateSelector(!showDateSelector)}
+						disabled={isLoadingDates}
 						className="cursor-pointer border-white/10 bg-white/5 text-white hover:bg-white/10"
 					>
-						<CalendarIcon className="mr-2 h-4 w-4" />
-						Trocar Data
+						{isLoadingDates ? (
+							<LoaderCircleIcon className="mr-2 h-4 w-4 animate-spin" />
+						) : (
+							<CalendarIcon className="mr-2 h-4 w-4" />
+						)}
+						{isLoadingDates ? "Carregando datas..." : "Trocar Data"}
 					</Button>
 					<Button
 						variant="outline"
@@ -283,11 +288,11 @@ export function MovieSelectionStep({
 					{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
 						<Skeleton
 							key={i}
-							className="aspect-[2/3] w-full rounded-xl bg-white/5"
+							className="aspect-2/3 w-full rounded-xl bg-white/5"
 						/>
 					))}
 				</div>
-			) : isScraping || (movies.length === 0 && !isLoading) ? (
+			) : isScraping ? (
 				<div className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 p-16 text-center">
 					<div className="relative mb-6">
 						<div className="absolute inset-0 animate-ping rounded-full bg-emerald-300/90/20 opacity-75" />
@@ -330,7 +335,7 @@ export function MovieSelectionStep({
 								}`}
 							>
 								{/* Poster Image - Vertical */}
-								<div className="relative aspect-[2/3] w-full overflow-hidden bg-black/40">
+								<div className="relative aspect-2/3 w-full overflow-hidden bg-black/40">
 									{movie.posterUrl ? (
 										<Image
 											src={movie.posterUrl}
@@ -346,7 +351,7 @@ export function MovieSelectionStep({
 									)}
 
 									{/* Overlay Gradient */}
-									<div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
+									<div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
 
 									{/* Selection Indicator */}
 									<div
