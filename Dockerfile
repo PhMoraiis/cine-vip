@@ -13,8 +13,8 @@ RUN cd apps/server && pnpm exec prisma generate
 RUN pnpm exec turbo build --filter=server
 
 # Playwright: instala deps de sistema e o browser via pnpm exec
-RUN pnpm exec playwright install-deps chromium
-RUN pnpm exec playwright install chromium
+RUN cd apps/server && pnpm exec playwright install-deps chromium
+RUN cd apps/server && pnpm exec playwright install chromium
 
 # Limpa caches para reduzir tamanho da imagem final
 RUN pnpm store prune && npm cache clean --force
