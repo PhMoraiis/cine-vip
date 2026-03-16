@@ -6,7 +6,7 @@
     "build": "prisma generate && tsdown src/http/index.ts",
     "check-types": "tsc -b",
     "compile": "pnpm build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "pnpm run --hot src/http/index.ts",
+    "dev": "pnpm tsx watch src/http/index.ts",
     "start": "pnpm run dist/index.js",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -37,6 +37,7 @@
     "@types/node": "^24.5.2",
     "prisma": "^7.0.0",
     "tsdown": "^0.15.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.2"
   }
 }
